@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" suppressHydrationWarning>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modus App</title>
+    <meta name="description" content="Modus Web Components Application" />
+    
+    <!-- FOUC prevention script -->
+    <script>
+      (function(){try{var k=localStorage.getItem('theme')||'system';var sys=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var r=k==='system'?sys:k;var t=r==='dark'?'modus-modern-dark':'modus-modern-light';var e=document.documentElement;e.dataset.theme=t;e.dataset.mode=k;e.classList.add(r);localStorage.setItem('modus-theme-config',JSON.stringify({theme:t}));}catch(_){}})();
+    </script>
+    
+    <!-- Modus Icons -->
+    <link rel="stylesheet" href="/modus-web-components/modus-icons.css" />
+    <link rel="preload" as="font" type="font/woff2" href="https://cdn.jsdelivr.net/npm/@trimble-oss/modus-icons@1/dist/modus-outlined/fonts/modus-icons.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="https://cdn.jsdelivr.net/npm/@trimble-oss/modus-icons@1/dist/modus-solid/fonts/modus-icons.woff2" crossorigin />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

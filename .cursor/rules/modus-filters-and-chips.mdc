@@ -1,0 +1,99 @@
+---
+description: >-
+  Multi-select and removable facet filters using modus-wc-chip — state, OR semantics,
+  showRemove/onChipRemove, and wiring filtered data to modus-wc-table (not badges).
+globs:
+  - "**/*.{tsx,ts,vue,jsx,js,html}"
+alwaysApply: false
+---
+
+# Modus — interactive filters (`modus-wc-chip`)
+
+Use this when building **facet filters**, **chip rows**, or **“Filters:”** controls that **narrow** a list, grid, or **`modus-wc-table`**. Pair with [modus-essentials.mdc](./modus-essentials.mdc) (component selection, **`size="sm"`** on compact chips), [modus-components-patterns.mdc](./modus-components-patterns.mdc), and [**modus-wc-table**](../skills/modus-wc-table/SKILL.md). Confirm **`modus-wc-chip`** props/events for your installed **`version`** via **Modus Docs MCP** (`get_modus_component_data` → `modus-wc-chip`).
+
+## Do / don’t
+
+- **Do** use **`modus-wc-chip`** (or framework **`ModusWcChip`**) for **toggleable filter facets** with optional **per-chip remove**.
+- **Do not** use **`modus-wc-badge`** for filters that **activate/deactivate** or **clear** selection — badges are for **status/metadata display**, not interactive filter chrome.
+
+## Chip configuration (filter row)
+
+- **`size="sm"`** for dense filter rows (align with [modus-essentials.mdc](./modus-essentials.mdc) compact defaults).
+- **`active={boolean}`** — whether this facet is applied.
+- **`variant`** — **`filled`** when **`active`**, **`outline`** when inactive (clear selected vs idle affordance).
+- **`label`** — short facet name (two or three words where possible).
+- **`onChipClick`** — toggle membership in the active filter set (add/remove on whole-chip activation).
+- **`showRemove={active}`** — Modus shows the **built-in close control** on the **right** only when the chip is active (uses package styling; do not hand-roll an X beside the chip).
+- **`onChipRemove`** — remove **only** this facet from the active set (same outcome as toggling off, but dedicated handler for the remove control).
+- Wrap the row in **`role="group"`** with an **`aria-label`** (e.g. “Filter by team”). When **`showRemove`** is true, give the chip a clear **`aria-label`** so screen readers know the remove affordance exists.
+
+There is **no** chip prop that clears **all** filters; add a **`ModusWcButton`** **`variant="outlined"`** **`color="tertiary"`** **`size="sm"`** (e.g. “Clear filters”) that resets filter state if product requires it.
+
+## State and semantics
+
+- Hold active facets in a **`Set`** (or immutable **`ReadonlySet`**) of a **small string union** / enum (`'marketing' | 'product' | …`).
+- **Filtering rule (recommended default):**
+  - **No facets selected** → treat as **no filter**: show **full** dataset.
+  - **One or more facets selected** → show rows where the row’s **category field** matches **any** selected facet (**OR**), unless product explicitly requires **AND**.
+- Keep **toggle** logic (`onChipClick`) and **remove-one** logic (`onChipRemove`) in small **`useCallback`** handlers that update the same set.
+
+## Table and list wiring
+
+- Source rows should include a **stable category key** (e.g. **`team`**) used only for filtering.
+- **`useMemo`** derived **`filteredRows`**: filter source array, then **map** to the shape **`modus-wc-table`** expects (omit internal keys like **`team`** from **`data`** if they are not columns).
+- Pass **`filteredRows`** to **`data`**; keep **`columns`** stable.
+
+## React reference pattern
+
+```tsx
+const [activeFilters, setActiveFilters] = useState<ReadonlySet<TeamId>>(() => new Set());
+
+const toggleFilter = useCallback((id: TeamId) => {
+  setActiveFilters((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+}, []);
+
+const removeFilter = useCallback((id: TeamId) => {
+  setActiveFilters((prev) => {
+    const next = new Set(prev);
+    next.delete(id);
+    return next;
+  });
+}, []);
+
+const filteredRows = useMemo(() => {
+  const rows = /* ... */;
+  if (activeFilters.size === 0) return rows.map(({ category: _c, ...rest }) => rest);
+  return rows
+    .filter((row) => activeFilters.has(row.category))
+    .map(({ category: _c, ...rest }) => rest);
+}, [activeFilters]);
+
+// In JSX:
+{FILTER_OPTIONS.map(({ id, label }) => {
+  const active = activeFilters.has(id);
+  return (
+    <ModusWcChip
+      key={id}
+      label={label}
+      size="sm"
+      active={active}
+      variant={active ? "filled" : "outline"}
+      showRemove={active}
+      onChipClick={() => toggleFilter(id)}
+      onChipRemove={() => removeFilter(id)}
+      aria-label={active ? `${label} filter, active` : `${label} filter`}
+    />
+  );
+})}
+<ModusWcTable columns={columns} data={filteredRows} /* … */ />
+```
+
+## Other stacks
+
+- **Vanilla:** listen for **`chipClick`** / **`chipRemove`** on the host; set **`show-remove`** when active.
+- **Angular / Vue:** bind the same props and outputs documented for **`@trimble-oss/moduswebcomponents-*`** for your major — event names follow package conventions (**`chipRemove`**, etc.).

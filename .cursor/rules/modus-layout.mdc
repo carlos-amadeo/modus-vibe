@@ -1,0 +1,386 @@
+---
+description: Modus Web Components layout — stacked vs grid cards, main width vs breakpoints, modus-wc-card slots, title row, footer/actions, page header toolbars, dashboard hero/KPI bands, page-section rhythm, one-section-per-card vs dividers, tabs outside cards above tab content.
+globs:
+  - "**/*.{tsx,ts,vue,jsx,js,html}"
+alwaysApply: false
+---
+
+# Modus Web Components — layout
+
+Use this alongside [modus-essentials.mdc](./modus-essentials.mdc) (tokens, UX defaults), [modus-setup.mdc](./modus-setup.mdc) (patterns, shell, examples), [modus-typography.mdc](./modus-typography.mdc) (card titles and body type), and [modus-accessibility.mdc](./modus-accessibility.mdc) (semantics, contrast). **This file** is the reference for **multi-card pages** and **`modus-wc-card` / `ModusWcCard`** composition.
+
+For **new-app scaffolding**, the primary **`<main>`** column (inside **`modus-wc-side-navigation`**’s `targetContent` when using the default shell) should still use the **capped-width** pattern below—side nav does not replace the inner **`max-w-7xl`** content column.
+
+## Page and grid spacing
+
+Use responsive grids for card containers **when several peer cards belong in one row** (e.g. a set of homogeneous tiles or a deliberate dashboard band):
+
+```tsx
+// Standard 3-column responsive grid
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+  {/* Cards */}
+</div>
+```
+
+### Default: stacked parent-level cards
+
+- **Do not** wrap arbitrary consecutive **`modus-wc-card`** blocks in a multi-column grid **unless the product explicitly wants them side-by-side**. Mixing unrelated modules (e.g. a chart card next to a full data table) into **2+ columns** often hurts scan order, table width, and chart aspect ratio.
+- Prefer a **vertical stack** of full-width cards with **`gap-3`** (**12px**, same as parent-level peer grids—see spacing table below) **between** them. Reserve **CSS grid / multi-column** layouts for **named groups**: KPI bands, card galleries, or layouts specified in design.
+
+## Tabbed pages and multi-section surfaces (reports, details)
+
+- **One logical section → one card by default.** Treat **report headers** (title, metadata, primary actions), **metric / KPI bands**, **chart or narrative blocks**, and **data tables** as **separate sibling `modus-wc-card`** instances in the main column—not one “mega-card” that stitches them together. **`modus-wc-divider`** is for **subdividing a single coherent card** (e.g. rhythm inside one module, or above **`slot="footer"`**), not the default way to separate **independent** modules that each need their own **title slot**, **padding**, and optional **footer**.
+- **`modus-wc-tabs` outside cards:** Place **`modus-wc-tabs`** on the **page column** (same background as stacked cards)—**not** inside a parent card that also holds unrelated sections above the tabs. Tabs are **navigation for the content below**; visually they read as **chrome above** the active panel, not as interior decoration of a larger card.
+- **Tabs above their content cards:** Wrap the tab strip + panel in a **non-card container** (e.g. a `div` with **`display: flex; flex-direction: column;`**). Use **`gap: var(--modus-wc-spacing-md)`** (tighten or loosen per density) **between** the **tabs** and the **`modus-wc-card`** that holds the **active** tab’s body (summary copy, charts, alerts, tables). The outer **stack** between this region and **other** page cards uses the same **`gap-3`** stacked-parent rhythm as sibling full-width cards.
+- **Tab panel = card body:** Each tab’s primary content belongs in **the default body slot** of **a card under the tabs**—either **one card** whose inner content swaps with the selected tab, or **separate cards** per tab if that simplifies markup (e.g. heavy table vs light summary). Do **not** tuck tabs **between** arbitrary sections **inside** a single card unless the whole surface is intentionally **one** Modus card (rare for full report layouts).
+- **Section-level actions:** Put **report- or page-scoped** actions (**Duplicate**, **Schedule**, **Export**) on the **card that owns that context**—typically the **header / definition** card’s **`slot="footer"`**—rather than a footer that spans **mixed** sections merged into one host.
+- **Nested metric tiles:** A **“Key metrics”** (or similar) **parent card** may contain a **grid of child `modus-wc-card`** tiles; use the **homogeneous row** gutter (**`gap-3` / `var(--modus-wc-spacing-md)`**) between tiles—same **12px** rhythm as stacked parent-level cards—so the band reads as **one section** with internal peers.
+- **Accessibility:** When tab panels swap, give the visible panel wrapper a clear name—**`role="tabpanel"`** with **`aria-label`** (or **`aria-labelledby`** tied to tab labels when ids are stable) so assistive tech can tell **Summary** vs **Breakdown** apart. Confirm **`tabChange`** / focus behavior with **Modus Docs MCP** for your version.
+
+### Spacing conventions
+
+| Context | Spacing | Tailwind / token |
+|---------|---------|-------------------|
+| Parent-level card gaps (peer grid **or** vertical stack of full-width cards) | 12px | `gap-3` |
+| Child / nested card gaps | 8px | `gap-2` |
+| **Card `slot="title"` → first dense body block** (table, chart, alert, full-width list) | 16px | **`mb-4`** on the title wrapper **or** **`mt-4`** on the first body wrapper — see **Title row** |
+| Section padding | 16px | `p-4` |
+| Form field groups | 16px | `gap-4` |
+
+Optional **`--padding-card`** (defaults to **`1rem`** on **`:root`** in blueprint **`globals.css`) and nested-card **`base-200`** fills are documented in [modus-components-patterns.mdc](./modus-components-patterns.mdc) (**Cards**) and blueprint tokens in [modus-essentials.mdc](./modus-essentials.mdc). **Do not** paste global **`:root`** or broad **`modus-wc-*`** overrides intended for page cards onto the **app shell** — keep layout tokens and card CSS **scoped to main content / card wrappers** so **`modus-wc-side-navigation`** and other chrome are unchanged. **Do not** add **`background-image`** / SVG textures on **`modus-wc-side-navigation`** when mirroring blueprint (marketing-only rail artwork); rely on Modus **`base-page`**. Prefer parent **`gap`** / wrapper spacing over extra **margin** on **`modus-wc-card` inside `modus-wc-card`**.
+
+## Main content max width (blueprint breakpoints)
+
+Use the same **Tailwind mobile-first breakpoints** documented on the blueprint **Foundations → Breakpoints** page (`sm` / `md` / `lg` / `xl` / `2xl`). Viewport bands:
+
+| Token | Min width | Typical use |
+|-------|-------------|---------------|
+| base | below 640px | Phones (portrait) |
+| `sm` | 640px | Small / landscape phones |
+| `md` | 768px | Tablets |
+| `lg` | 1024px | Laptops |
+| `xl` | 1280px | Desktops |
+| `2xl` | 1536px | Large desktops |
+
+**Primary `<main>` (or the inner column that holds page cards)** should cap width so long lines and card grids do not sprawl on ultra-wide monitors:
+
+- Default pattern (matches blueprint **`AppShellLayout`**, **`DetailPageLayout`** grids, and Foundations pages): **`w-full max-w-7xl mx-auto min-w-0`** on the main content wrapper.
+- **`max-w-7xl`** = **80rem (1280px)** at default root font size — numerically aligned with the **`xl`** breakpoint (1280px), so the content column and breakpoint docs stay in sync.
+- **`min-w-0`** is required on flex children so nested scroll and truncation behave (see [modus-wc-integration.mdc](./modus-wc-integration.mdc) viewport or scroll notes if applicable).
+- Horizontal padding often scales with the same system, e.g. **`p-4 sm:p-6`** (or **`px-4 sm:px-6`**) on that wrapper or the grid shell—keep consistent with sibling foundations pages.
+- **Mobile / “narrow” layout branches — never zero out page gutters by default:** Do **not** use **`px-0`** (or **`p-0`**) on **page-level** wrappers (heroes, toolbars, stacked actions, card stacks) just because **`narrow`**, **`useMediaQuery`**, or a **container / ResizeObserver** width says the column is small — icons, **`h1`s, full-width buttons, and cards will hug the device bezel** and break blueprint rhythm. Prefer at least **`px-4`** (**16px**) on the tightest band and **`px-6`** when the column is wider (e.g. **`narrow ? 'px-4' : 'px-6'`** or a single **`px-4 md:px-6`** on the capped column). **`hidden md:flex`**-style responsive utilities are unrelated — the gutter rule applies to **inset**, not display. Reserve **full-bleed** (**`px-0`**) for **explicit** exceptions (edge-to-edge media, maps, hero photography) on **named** wrappers, not the default **`max-w-7xl`** page shell.
+- **Audit:** Flag diffs that add **`px-0`** or **`mx-0`**-equivalent full width **without** compensating padding on a **parent** when the change is tied to **`narrow`**, **`tight`**, **`max-lg:`**, or similar — require a design note for intentional full-bleed.
+
+Narrower caps (**`max-w-3xl`**, **`max-w-4xl`**, prose columns) are fine **inside** main for articles or forms; do not replace the outer main cap unless the product intentionally uses a different shell contract.
+
+## Card slots (Modus API)
+
+- **`slot="title"`** — Card title / heading row. Put the primary title here.
+- **Body** — Main content goes in the **default (unnamed) slot**. In React, that is usually children **without** a `slot` prop. For other stacks, follow the installed package docs if the body uses an explicit slot name.
+- **React — default body (no ternary root swaps):** Do **not** drive the whole card body with `{condition ? <BranchA /> : <BranchB />}` when **`BranchA`** and **`BranchB`** are **different large trees** (accordions, setup wizards, alternate IDE panels, etc.). Stencil **projects** default-slot nodes into shadow DOM; swapping roots lets React and the browser disagree on parentage—often **`removeChild` / `NotFoundError`**, **ghost content**, or **replacement UI rendering below the card** while the old body still shows inside it. Mount **both** branches in **stable wrappers** and toggle **`hidden`** / **`aria-hidden`** instead. See [modus-wc-integration.mdc](./modus-wc-integration.mdc) (**Slot projection vs React reconciliation**) and [**modus-wc-react-slotted-hosts**](../skills/modus-wc-react-slotted-hosts/SKILL.md).
+- **Actions** — Modus uses **`slot="footer"`** for supporting information, metadata, and action buttons. There is no separate `slot="actions"`; treat the footer as the **card actions** row.
+
+## New card checklist
+
+1. Title → **`slot="title"`**
+2. Primary content → **default body slot** (unnamed children in React)
+3. Supporting copy, metadata, or buttons → **`slot="footer"`**
+
+## Title row
+
+- **`slot="title"` vertical alignment:** The **outer** title row (the full width of the title band) should keep **`align-items: center`** (`items-center`) so **leading content** (title text, optional subtitle stack, icon) and **trailing controls** (buttons, badges) share the **same vertical midpoint** relative to the card’s title area. Do **not** use **`align-items: flex-start` / `flex-end`** on that outer row unless a design explicitly calls for edge alignment — otherwise controls look “floating” above or below the heading. **Nested** groups may differ: e.g. a **left column** with title + subtitle can use **`flex-col` + `items-start`** *inside* that column while the **outer** row stays **`items-center`**.
+- Scope title-slot layout CSS to **main / card wrappers** (e.g. `.page-main modus-wc-card [slot='title']`) so shell chrome is unchanged.
+- Controls in the title (buttons, badges, chips, menus): use **`size="xs"`** or each component’s **smallest documented size** so the bar stays visually lighter than page headings. Confirm allowed values with **Modus Docs MCP** for your version.
+- **Icon + title text:** always group **icon and typography in one leading cluster** (e.g. inner `flex min-w-0 items-center gap-2`). **Do not** make the icon and title **separate** siblings under **`justify-content: space-between`** on the outer row—that pushes them to opposite ends of the card.
+- **`justify-between` only with trailing actions:** Use **`justify-between`** on the **outer** title row **only** when there is **more than** the leading **icon + typography** cluster—i.e. when you also render **trailing** controls (buttons, badges, chips, menus) **as sibling(s)** of that cluster. If the title is **only** icon + typography (no trailing cluster), use **`justify-start`** on the outer row (or a single flex row with **`gap-2`** and no space-between) so the leading group stays left-aligned without a false full-width split.
+- **Title band → body (dense chrome):** **`slot="title"`** and the **default body** are separate slots. With **`padding="compact"`**, the **first body child**—especially **`modus-wc-table`**, chart wrappers, **`modus-wc-alert`**, or wide lists—can sit **flush** under the title row when that row has **trailing actions** (e.g. primary **New …** button). **Do not** rely on implicit card padding alone for this boundary.
+  - Add **`mb-4`** (**16px**, **`1rem`**, aligned with **`--padding-card`** where your app defines it) on the **outer** **`slot="title"`** **`div`**, **or** **`mt-4`** on the **first** body wrapper. Prefer **`mb-4` on the title wrapper** so spacing stays tied to the title band.
+  - **Audit:** Flag diffs that pair **`slot="title"`** + **`justify-between`** + body opening with **`ModusWcTable`** / chart / alert **without** explicit **`mb-*` / `mt-*`** at that boundary.
+
+**Title only (icon + typography, no actions):**
+
+```tsx
+<div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2">
+  <ModusWcIcon name="…" decorative />
+  <ModusWcTypography hierarchy="h4" size="md" weight="semibold" label="Title" />
+</div>
+```
+
+**Title + trailing controls:**
+
+```tsx
+<div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
+  <div className="flex min-w-0 items-center gap-2">
+    <ModusWcIcon name="…" decorative />
+    <ModusWcTypography hierarchy="h4" size="md" weight="semibold" label="Title" />
+  </div>
+  <ModusWcButton size="xs" variant="borderless" color="tertiary">
+    …
+  </ModusWcButton>
+</div>
+```
+
+Use **`mb-4`** on that title row when the default-slot body immediately follows with a **table**, **chart**, **alert**, or similar dense block—see bullets above.
+
+For typography defaults in titles, see [modus-typography.mdc](./modus-typography.mdc).
+
+## Card defaults
+
+- **`padding="compact"`** by default; **`comfortable`** only when content needs more air.
+- **`bordered={false}`** by default; avoid extra decorative borders. Keep card heights consistent within a row where it matters.
+
+## Body inner spacing
+
+- Wrap stacked body content in a **column flex or grid** with **`gap-1`** between sibling blocks (tight vertical rhythm inside the card).
+- **`gap-1` does not apply between `slot="title"` and the body**—those are different slots. When the **first** body child is a **table**, **chart**, **alert**, or full-width list, add separation per **Title row** → **Title band → body (dense chrome)** (**`mb-4`** on the title wrapper or **`mt-4`** on the first body wrapper).
+
+## Footer / actions alignment
+
+- Content in **`slot="footer"`** should **not** run full-bleed past the card’s content: apply **horizontal padding** so the footer lines up with the card body — e.g. **`padding-left` / `padding-right`** using **`var(--modus-wc-spacing-md)`** or values that match **`--padding-card`** and compact card padding.
+- Always include **top padding** on the footer row (e.g. **`padding-top: var(--modus-wc-spacing-md)`**) so actions and supporting content are visually separated from the body. If a **divider** sits above the footer, keep or increase top padding so spacing still feels balanced.
+- **Do not** set the footer row’s **bottom padding to `0`** (e.g. avoid **`padding-bottom: 0`**, **`pb-0`**, or a shorthand that clears the bottom) when that strips the card’s intended inset—keep **at least** **`var(--modus-wc-spacing-md)`** on the bottom unless Modus card padding already provides it and you are not overriding it away. Add **extra bottom padding** when the design needs more clearance above the card edge.
+
+## Page header / toolbar: mixed controls (label + field + button)
+
+When a **labeled** Modus input (`modus-wc-select`, `modus-wc-text-input`, etc. with **`label`**) sits **beside** a **standalone** **`modus-wc-button`**, avoid aligning the **whole** header row with **`align-items: flex-end`** *unless* the button’s **bottom** should match only the **field** — not the **label**.
+
+**What goes wrong:** `flex-end` on a horizontal flex pairs **item 1** (label stacked above the control) with **item 2** (button). The shared **cross-axis** alignment is the **bottom of each flex item’s box**. The labeled control’s box is **tall** (label + field); the button is often **taller than the field alone**. Bottom-aligning then pins the button’s bottom to the **bottom of the whole control** (same as the field baseline), so the **button grows upward** and intrudes into the **label band** — uneven tops and a broken toolbar line.
+
+**Preferred patterns:**
+
+1. **Split label from the Modus `label` prop** — Use a **native `<label htmlFor={id}>`** (or an equivalent accessible association) **above** the control, pass **`inputId` / `id`** into the Modus component, and **omit** the component’s **`label`** so the flex row’s siblings are: **`[ column: external label + field ]`** and **`[ button ]`**. On the **horizontal** toolbar row use **`align-items: flex-end`** so the **button** aligns to the **field** only; the label sits in the column above the field. Match control and button **`size`** (e.g. **`sm` + `sm`**) so heights line up. In **React**, generate the **`htmlFor` / `inputId`** pair with **`useId()`** (or your framework’s stable-id helper) so the association stays valid and unique across trees.
+2. **Single-line toolbar only** — If everything in the row is **one line** (no stacked label), use **`align-items: center`** and the **same `size`** on adjacent inputs and buttons. **Do not** pair a **`sm`** field with an **`md`** button in the same row unless product specs explicitly allow it—unequal control heights are a common source of “misaligned toolbar” reports.
+3. **Grid** — For complex toolbars, use a **2-row grid**: row 1 = labels (or empty cell beside unlabeled actions), row 2 = fields + buttons with **`align-items: center`** on that row.
+
+**Page title row note:** It is fine for **`align-items: flex-end`** to align the **page title block** with the **toolbar** **when the toolbar** follows one of the patterns above. Do not use **`flex-end`** on the **inner** actions row to mean “line up button with label+field as one box” unless the button height cannot exceed the **field** height.
+
+### Page hero: title column vs toolbar column (dashboards)
+
+- Prefer a **two-column CSS grid** for the hero row: **`grid-template-columns: minmax(0, 1fr) max-content`**, **`width: 100%`**, **`min-width: 0`**, **`align-items: start`** so the **title + subtitle** column and the **toolbar** column share a **top** baseline and the toolbar cluster sits on the **same right margin** as full-width **`width: 100%`** cards stacked below. A plain **`display: flex; justify-content: space-between`** hero **without** a **`minmax(0, 1fr)`** title column can make the **toolbar width** and **card width** follow **different width contracts**, producing a **stair-step** on the **right** edge.
+- **Button order inside the hero toolbar:** When the cluster is a **two-button primary + quiet pair**, put **quiet / outlined / tertiary** **left** and **`filled` + `primary`** **right** (LTR); see [modus-essentials.mdc](./modus-essentials.mdc) → **UX defaults** → **Paired actions in one horizontal row**.
+- Keep the **toolbar’s inner row** on **pattern 1** or **pattern 2** above; the hero grid’s **`align-items: start`** addresses **title vs toolbar column** alignment, not **field vs button** inside the toolbar.
+
+## Grid children: never put `col-span-*` on `customClass`
+
+**`modus-wc-card`** / **`ModusWcCard`** renders an **inner `<article>`** and forwards **`customClass`** onto that article — **not** onto the host `<modus-wc-card>` element. The grid child the CSS grid parent can see is the **host**, so Tailwind classes like **`xl:col-span-3`**, **`md:col-span-2`**, or any responsive column span on **`customClass`** have **no effect on the outer grid layout** — every card gets an equal **1fr** track and you end up with a 1:1 split where a 3:1 or 2:1 was intended.
+
+**BAD — `col-span` hidden inside `customClass`:**
+
+```tsx
+<div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
+  <ModusWcCard bordered={false} customClass="xl:col-span-3">…</ModusWcCard>
+  <ModusWcCard bordered={false} customClass="xl:col-span-1">…</ModusWcCard>
+</div>
+```
+
+`customClass` lands on the inner `<article>`; the grid sees two equal `<modus-wc-card>` children and gives each **one** track of four, wasting the remaining two tracks (or collapsing to a 1:1 split depending on grid definition).
+
+**GOOD — wrap each card in a grid-child `<div>`:**
+
+```tsx
+<div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
+  <div className="min-w-0 xl:col-span-3">
+    <ModusWcCard bordered={false}>…</ModusWcCard>
+  </div>
+  <div className="min-w-0 xl:col-span-1">
+    <ModusWcCard bordered={false}>…</ModusWcCard>
+  </div>
+</div>
+```
+
+- The wrapper `<div>` is the grid child; `xl:col-span-3` correctly allocates 3 of 4 tracks at ≥`xl`.
+- **`min-w-0`** is required on these wrappers (CSS grid children default to `min-width: auto`, and chart containers / tables inside the card will otherwise overflow and push siblings). **Recharts 3 `ResponsiveContainer`:** also give the chart block a **pixel-height wrapper** and **positive `initialDimension`** so devtools are not spammed with **-1** sizing warnings—see [.cursor/skills/modus-wc-chart-colors/SKILL.md](../skills/modus-wc-chart-colors/SKILL.md) **§4b**.
+- The card still renders `width: 100%` inside its wrapper, so the visual footprint is identical to what `col-span` on `customClass` would have (naively) implied.
+
+**Keep using `customClass` for** inner-article concerns: extra padding, borders, hover states, scoped CSS tokens. It is **fine** there — just not for grid placement.
+
+**Audit rule:** any time you see `customClass=".*col-span-"` or `customClass=".*row-span-"` in a diff, move that class to a wrapper div. This also applies to other Modus hosts whose public API exposes a `customClass` / `custom-class` prop that maps to an inner wrapper (`modus-wc-tabs`, `modus-wc-navbar`, `modus-wc-side-navigation`, etc.) — verify with **Modus Docs MCP** for your version if you are unsure which element receives the class.
+
+### `customClass` forwarding map (where the class actually lands)
+
+The same rule applies broadly: in most Modus components, **`customClass`** is forwarded to an **inner wrapper** in light DOM, **not** the host `<modus-wc-…>` element you placed on the page. That means:
+
+- **Layout-affecting classes that the parent layout depends on** (CSS grid `col-span-*` / `row-span-*`, flex `flex-1` / `basis-*`, `w-full` overrides for the host, container queries on the host) belong on a **wrapper `<div>`** around the host — not on `customClass`.
+- **Inner-chrome classes** (`bg-*`, `border-*`, `shadow-*`, `hover:*`, padding/margin **inside** the component, scoped CSS variables) belong on **`customClass`** — that is exactly what it is for.
+
+Quick reference for components whose `customClass` lands on an inner wrapper (confirm with **Modus Docs MCP** for your `version` — descriptions sometimes say "inner div" or "inner article"):
+
+| Component | `customClass` lands on | Layout class (parent grid/flex) goes on |
+|-----------|------------------------|------------------------------------------|
+| `modus-wc-card` | inner `<article>` | wrapper `<div>` around the host |
+| `modus-wc-modal` | inner dialog wrapper | usually n/a (modal floats in top layer) |
+| `modus-wc-tabs` | inner tabs container | wrapper around the host |
+| `modus-wc-table` | inner table wrapper | scroll wrapper around the host (`overflow-x-auto min-w-0`) |
+| `modus-wc-side-navigation` | inner panel | the **fixed/absolute parent** that reserves layout space |
+| `modus-wc-navbar` | inner bar | wrapper for sticky positioning (`sticky top-0 z-…`) |
+| `modus-wc-toast` | inner toast | the fixed wrapper (`fixed inset-0 …`) |
+| `modus-wc-tooltip` | inner tooltip wrapper | the trigger element you wrap (size, focus styles) |
+| Form inputs (`modus-wc-text-input`, `-textarea`, `-number-input`, `-select`, `-checkbox`, `-switch`, `-radio`) | inner input wrapper | form-cell wrapper (`grid` cell, `col-span-3`, etc.) |
+
+**Rule of thumb:** if removing the class would change the **outer** size/position of the component as the surrounding layout sees it, that class belongs on a wrapper `<div>`, not `customClass`. If removing it only changes the **inside** of the component's chrome, `customClass` is correct.
+
+For appearance overrides that `customClass` cannot reach — **specifically inside shadow DOM** — prefer the order in [modus-essentials.mdc](./modus-essentials.mdc) → **Component styling**: documented props → `customClass` → scoped CSS against predictable hooks → `::part` only when the public API cannot reach the surface. Do **not** jump to global `modus-wc-* { … }` overrides without that ladder.
+
+## Homogeneous card rows (KPI / metric bands, paired callouts)
+
+When several **peer** **`modus-wc-card`** tiles share one row (e.g. **summary KPIs**, **Maintenance + SLA** callouts—whenever **bottom edges must align**):
+
+- Use **CSS Grid** with **`repeat(N, minmax(0, 1fr))`**. **`minmax(0, 1fr)`** is **required**: grid items default to **`min-width: auto`**, so long body copy, badges, or table min-widths in **one** card can **steal** horizontal space from siblings and make **one column look wider** than the others.
+- Keep **`align-items: stretch`** on the grid (the **default**). **`stretch` only sizes the grid item’s box**—it does **not** automatically make **short cards visually fill** the row unless **`height: 100%`** flows through **wrapper → host → inner article**. Do **not** place **`ModusWcCard` bare as the grid child** for equal-height rows unless you also satisfy the next bullets.
+- Wrap **each** card in a **grid-child `<div>`** with **`min-w-0`**, **`h-full`**, **`min-h-0`** (same idea as **`col-span-*`** → wrapper owns layout). On **`ModusWcCard`**, use **`customClass`** so the **inner `<article>`** fills that wrapper—typically **`box-border flex h-full min-h-0 w-full flex-col`**. If the **host** still won’t grow, add **`className`** on **`ModusWcCard`** (**Stencil** forwards it to **`<modus-wc-card>`**)—e.g. **`flex h-full min-h-0 w-full flex-col`**—so the custom element participates in stretch.
+- **Horizontal gutters** inside the band should follow the **peer card** rule: **`gap: 0.75rem`** (**12px**, Tailwind **`gap-3`**), aligned with stacked parent-level card rhythm.
+- **Breakpoints:** mirror **`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`** — e.g. **1 column** by default, **2 columns from `md` (768px)**, **3 columns from `lg` (1024px)`** — so tablets get two tiles and laptops get three, aligned with the blueprint breakpoint table above.
+
+**Direct-grid-child trap:** **`customClass`** lands on the **inner article**, not the **host**. Row stretch **without** wrapper **`h-full`** + inner **`h-full`** leaves shorter cards **content-height**, so bottoms **misalign**.
+
+## Page section wrappers (heading + content)
+
+- Use **`gap: var(--modus-wc-spacing-xl)`** (or your app’s chosen **section** token) on the **outer** capped column (**`page-main`**) **between** major bands: intro hero, summary block, channels block, etc.
+- **Inside** each band, wrap **`h2` + grid or full-width card** in **`<section class="page-section">`** (or equivalent) with a **tighter inner gap** (e.g. **`gap: var(--modus-wc-spacing-md)`** / **`gap-3`**) between the **section heading** and the **KPI grid or card**. That avoids **cramped** “subtitle → `h2`” spacing and avoids relying on **default heading margins** fighting flex **`gap`**—prefer **wrapper `gap`** over ad hoc **`margin-top`** on **`modus-wc-typography`**.
+- A **intro-only** section (hero alone) can use **`gap: 0`** on that wrapper so the hero does not pick up **double** vertical spacing against the outer column.
+
+## Dense metrics / lists inside a card body
+
+- For **stacked rows** (e.g. **label + progress bar**, **stat lines**) inside **`padding="compact"`** cards, if the body looks **asymmetric** (content hugging one edge relative to the **title** band), add a **small symmetric `padding-inline`** on an **inner wrapper** around the list only. **Scope** these rules to **`main` / `.page-main` / card wrappers**—do not override global **`modus-wc-card`** chrome in a way that affects **side navigation** or **navbar**.
+
+## React + slots
+
+### Route views: one main column, not many `hidden` page roots
+
+A common SPA pattern is to render **one full-page stack per route** as **siblings** under **`<main>`**, toggling visibility with the **`hidden`** attribute:
+
+```tsx
+// Anti-pattern for layout spacing (easy to get wrong)
+<main>
+  {routes.map((r) => (
+    <div key={r} className="dashboard-stack" hidden={activeRoute !== r}>
+      …
+    </div>
+  ))}
+</main>
+```
+
+**Why this bites layout:** **`gap` / `margin` on `.dashboard-stack`** only spaces **children inside each** of those divs. It does **not** add space **between** two different route roots. If more than one root is visible (bug, mistaken `hidden`, extension, or CSS overriding `[hidden]`), the next route’s **page `<h1>`** can sit **flush against** the previous route’s **last card**—no flex `gap` applies across that boundary. Even when `hidden` works, this structure is **harder to reason about** than a single column.
+
+**Preferred pattern:** Keep **one** capped-width column (e.g. **`max-w-7xl mx-auto min-w-0`**) and **swap the body** for the active route—optionally with **`key={activeRoute}`** so local state resets cleanly:
+
+```tsx
+<main className="app-main">
+  <div className="dashboard-stack page-main" key={activeRoute}>
+    {activeRoute === 'overview' ? <OverviewPage /> : <OtherPage />}
+  </div>
+</main>
+```
+
+Inside that column, group **page hero + cards** in **`<section className="page-section">`** (or equivalent) wrappers and use a **single vertical rhythm token** on the **parent flex column**—**`gap-3`** (**12px**) for stacked **cards** matches the spacing table; keep **`var(--modus-wc-spacing-xl)`** only on the **outer `page-main`** **between major bands** if the product wants looser **section** rhythm (see **Page section wrappers** above). Prefer **wrapper `gap`** over ad hoc margins on headings.
+
+**Typography:** Default margins on **`modus-wc-typography`** (or native headings) can **fight** flex **`gap`**. For page heroes, it is often clearest to set **`margin-block: 0`** on typography **hosts** in the hero and let **`gap`** on the parent define spacing.
+
+**Do not** contradict this with “always use `hidden` for routes”: **`hidden`** is still fine for **in-page** toggles (filters, panels) and for **small** subtrees; the issue is **multiple independent page-level flex columns** as **`<main>`** children. For **React Router**, prefer **`<Outlet />`** / a single layout child over duplicating the whole main column per route.
+
+### Slotted hosts
+
+- Avoid **mount/unmount toggles** for children that use **`slot="..."`** on a Modus host; prefer **`hidden`** or CSS. The same applies to **swapping two different default-slot body roots** inside **`ModusWcCard`** (see **Card slots** → **React — default body** above). See [modus-essentials.mdc](./modus-essentials.mdc), [modus-wc-integration.mdc](./modus-wc-integration.mdc) (**Slot projection vs React reconciliation**), and the **modus-wc-react-slotted-hosts** skill.
+
+## Common page patterns
+
+These minimal scaffolds combine the rules above into the layouts most apps need on day one. For per-component slot/event details, follow the matching rule or skill: [modus-components-patterns.mdc](./modus-components-patterns.mdc) (cards, navbar, side nav, modal), [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc) (handlers), and [modus-wc-integration.mdc](./modus-wc-integration.mdc) (App shell, viewport / scroll ownership).
+
+### Page Layout (shell + main column)
+
+**Match `targetContent` to the same id you put on `<main>`** — `#main-content` is the convention used across blueprint and the side-navigation skill. A mismatch (e.g. `#main` vs `id="main-content"`) silently disables the push-mode margin sync. Full responsive recipe (push ≥ 1024 / overlay below, hamburger wiring, first-paint races): see the [**modus-wc-side-navigation** skill](../skills/modus-wc-side-navigation/SKILL.md) and [modus-wc-integration.mdc](./modus-wc-integration.mdc) → **App shell**.
+
+```tsx
+<div className="flex h-screen">
+  <ModusWcSideNavigation
+    expanded={open}
+    mode="push"
+    targetContent="#main-content"
+    collapseOnClickOutside={false}
+  >
+    {/* Menu items wrapped in <ModusWcMenu>, see modus-components-patterns.mdc → Navigation */}
+  </ModusWcSideNavigation>
+
+  <main
+    id="main-content"
+    className="flex-1 overflow-auto bg-(--modus-wc-color-base-page)"
+  >
+    <div className="p-6">
+      {/* Page content — capped column inside, e.g. max-w-7xl mx-auto min-w-0 */}
+    </div>
+  </main>
+</div>
+```
+
+### Card Grid
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+  {items.map((item) => (
+    <ModusWcCard key={item.id} bordered={false}>
+      <ModusWcTypography slot="title" hierarchy="h4" label={item.title} />
+      <ModusWcTypography slot="subtitle" label={item.description} />
+    </ModusWcCard>
+  ))}
+</div>
+```
+
+For homogeneous **KPI / metric bands** where every tile must share the row, use the **`repeat(N, minmax(0, 1fr))`** pattern in **Homogeneous card rows** above instead of `grid-cols-3` — `minmax(0, 1fr)` prevents one card's content from stealing horizontal space from siblings.
+
+### App shell navbar — `condensed` and hiding `slot="center"` on narrow widths
+
+For the **global** **`modus-wc-navbar`** / **`ModusWcNavbar`** (top shell **outside** **`main`**, not in-page headers):
+
+- **`condensed`:** Enable **`condensed`** on **narrow** viewports so the bar matches mobile density — often **below `md` (768px)** via **`useMediaQuery('(min-width: 768px)')`** / **`matchMedia`**, or align **`condensed`** with the same band you use for **push vs overlay** (e.g. **`lg` / 1024px**) so shell behavior stays coherent. Use **`condensed={false}`** on wider viewports unless product requires condensed desktop chrome.
+- **`slot="center"` is desktop-first:** Use **`slot="center"`** for inline app titles, breadcrumbs, or dense chrome **from `md` up**; on smaller viewports hide the slot and rely on the page **`h1`** (or equivalent) in **`main`** so **start** / **end** (hamburger, logo, user) are not squeezed.
+- **Stable slot root (React and similar):** **Do not** `{isWide ? <div slot="center">…</div> : null}` — Stencil **reparents** slotted nodes; conditional mount causes **`removeChild` / NotFoundError** on resize. Keep **one** stable **`div slot="center"`** and toggle visibility — see [**modus-wc-react-slotted-hosts**](../skills/modus-wc-react-slotted-hosts/SKILL.md).
+- **Why Tailwind `hidden` / `hidden md:flex` alone fails:** **`modus-wc-navbar`** styles include **unlayered** rules such as **`modus-wc-navbar .modus-wc-navbar [slot=center] { display: flex; … }`** (no `@layer`). Anything in Tailwind’s **`@layer utilities`** loses the **cascade** to those rules **even if** your **`@import`** order puts Tailwind last.
+- **Why `[hidden]` + `flex` on the same node fails:** The **`hidden`** attribute only implies **`display: none`** via the **UA stylesheet**. Putting **Tailwind `flex`** (or any author **`display: flex`**) on the **same** element **overrides** that hint, so the **center row stays visible** — a common regression after “fixing” layout with utilities.
+- **Canonical pattern (markup + global CSS):**
+  1. **`hidden={!isWideEnough}`** on the stable **`div slot="center"`** (match **`isWideEnough`** to the same breakpoint as **`visibility`** / **`condensed`**, e.g. **`md` / 768px**).
+  2. **Conditional `className`:** when **narrow / `hidden`**, use only a **scope class** (e.g. **`app-shell-navbar-center`**) — **omit** **`flex`**, **`flex-1`**, and other utilities that set **`display`**. When **wide**, apply the full **`flex min-w-0 …`** row classes.
+  3. **Unlayered** rule in **app globals** placed **after** **`@import 'tailwindcss'`** (must **not** sit inside `@layer`):
+
+```css
+.app-shell modus-wc-navbar [slot='center'][hidden] {
+  display: none !important;
+}
+```
+
+  Scope with your shell root (e.g. **`.app-shell`**) so **document** or **embedded** navbars are unaffected.
+
+- **Avoid fragile selectors:** Do **not** depend on **`modus-wc-navbar.app-shell-navbar`** on the **host** or **`>`** direct-child combinators unless you have **verified** the DOM — per the **`customClass` forwarding map** table earlier in this file, **`customClass`** on **`ModusWcNavbar`** lands on the **inner bar**, so host-class assumptions may not match. Prefer **`.app-shell modus-wc-navbar [slot='center'][hidden]`** (light-DOM slotted node under the shell root).
+
+Symptom / override cheat sheet: [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc) → **Navbar `slot="center"`**.
+
+### Detail Page Header (sticky)
+
+Sticky page-level header that holds a back button, title, and description. Use **Modus tokens** (`--modus-wc-color-base-page`, `--modus-wc-color-base-200`, `--modus-wc-color-base-content-low-contrast`) instead of hex; size the back button per [modus-essentials.mdc](./modus-essentials.mdc) → **UX defaults** (icon-only `square`, icon one size below button).
+
+```tsx
+<div className="sticky top-0 z-50 bg-(--modus-wc-color-base-page) border-b border-(--modus-wc-color-base-200) p-6">
+  <div className="flex items-center gap-4">
+    <ModusWcButton
+      variant="borderless"
+      color="tertiary"
+      shape="square"
+      size="sm"
+      aria-label="Back"
+      onButtonClick={onBack}
+    >
+      <ModusWcIcon name="chevron_left" size="xs" decorative />
+    </ModusWcButton>
+    <div>
+      <ModusWcTypography hierarchy="h1" size="xl" weight="bold" label={title} />
+      <ModusWcTypography
+        hierarchy="p"
+        size="sm"
+        customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
+        label={description}
+      />
+    </div>
+  </div>
+</div>
+```
+
+For the **navbar + side-nav full app shell** (sticky navbar, push/overlay rail, scroll ownership), follow [modus-essentials.mdc](./modus-essentials.mdc) → **Scaffolding new apps** plus the [**modus-wc-side-navigation** skill](../skills/modus-wc-side-navigation/SKILL.md). The detail-page header above is for **inside** that main column, not as a replacement for the global navbar.

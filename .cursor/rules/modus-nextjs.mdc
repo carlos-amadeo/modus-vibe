@@ -1,0 +1,141 @@
+---
+description: Ship Modus Web Components in Next.js (App Router) without FOUC or SSR surprises—layered contract: FOUC script, SSR CSS, :not(:defined) skeletons, client boundaries, and optional Stencil hydrate (DSD) with what still stays required.
+globs:
+  - "**/*.{ts,tsx,js,jsx,css}"
+alwaysApply: false
+---
+
+# Modus Web Components + Next.js — integration contract
+
+Use this alongside [modus-essentials.mdc](./modus-essentials.mdc), [modus-wc-integration.mdc](./modus-wc-integration.mdc), [modus-setup.mdc](./modus-setup.mdc), [modus-typography.mdc](./modus-typography.mdc), [modus-layout.mdc](./modus-layout.mdc), and [modus-accessibility.mdc](./modus-accessibility.mdc). This rule is **Next.js-specific**—it does **not** duplicate the cross-stack integration guide, it only captures what changes under **App Router + React Server Components (RSC)**. For **new Next.js Modus apps**, follow [modus-essentials.mdc](./modus-essentials.mdc) **Scaffolding new apps** (navbar + side navigation in a `'use client'` shell) and the **modus-wc-side-navigation** skill.
+
+Framework-agnostic mitigations for React + shadow DOM and scroll ownership live in [modus-wc-integration.mdc](./modus-wc-integration.mdc). Read that first, then apply this rule.
+
+## Why customers see “pop-in” and how to stop it
+
+Modus components are **Stencil custom elements**. Two facts drive the FOUC story:
+
+1. **`modus-wc-styles.css` is just CSS**—tokens, base layout, typography. It **does** ship in the SSR response if you import it from `app/layout.tsx`. The only thing that is client-only is **shadow DOM markup** and **per-component shadow styles** that Stencil defines after `customElements.define(...)` runs.
+2. So customers who say “WC don’t work with Next.js SSR” are usually describing a gap between **SSR HTML arriving** and **custom elements upgrading**. Close that gap in layers. With the Stencil **hydrate** app enabled in the package (**Layer 5**), you can also server-emit **Declarative Shadow DOM** for Modus tags you pass through `hydrateDocument`—but **Layers 1–4** remain required for theme, global CSS, React integration, and assets.
+
+Recommend the **five-layer contract**, applied in order. Each layer is independently shippable.
+
+## Layer 1 — FOUC script in `<head>` (before first paint)
+
+Run a small blocking script in `<head>` that reads `localStorage.theme` + `modus-theme-config` and sets on `<html>`:
+
+- **`data-theme`** = `modus-modern-light` | `modus-modern-dark`
+- **`data-mode`** = `light` | `dark` | `system`
+- **`class`** includes `light` or `dark` for the **resolved** mode
+
+This is the same contract as any React app (see [modus-essentials.mdc](./modus-essentials.mdc) → Theme). In Next.js, inject it in the **root** `app/layout.tsx` using a `<script dangerouslySetInnerHTML>` inside `<head>`, **not** `next/script` with `strategy="beforeInteractive"`—that strategy is **App Router-unsupported** for inline scripts and ships late. Example:
+
+```tsx
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k=localStorage.getItem('theme')||'system';var sys=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var r=k==='system'?sys:k;var t=r==='dark'?'modus-modern-dark':'modus-modern-light';var e=document.documentElement;e.dataset.theme=t;e.dataset.mode=k;e.classList.add(r);}catch(_){}})();`,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+Drift between this inline script and your React `ThemeProvider` reintroduces FOUC—edit both in the same PR. If your CSP disallows inline scripts, use `nonce` from `headers()` and pass it to the `<script>` tag.
+
+## Layer 2 — Global CSS arrives in the SSR response
+
+- Import **`@trimble-oss/moduswebcomponents/modus-wc-styles.css`** and app globals in **`app/layout.tsx`** (server component). Next.js inlines/streams CSS imports from the server bundle, so tokens and base layout ship **with the first HTML byte**—there is no client-JS dependency for these styles.
+- Load Modus Icons the same way as the vanilla blueprint: a small `/public/modus-web-components/modus-icons.css` with `@font-face` to jsDelivr, linked via `<link rel="stylesheet">` in `<head>` of `app/layout.tsx`. Preload the two `modus-icons.woff2` files with `<link rel="preload" as="font" crossOrigin="">` so chrome glyphs paint immediately (see [.cursor/skills/modus-wc-icons-setup/SKILL.md](../skills/modus-wc-icons-setup/SKILL.md)).
+- Preload **Open Sans** (or whatever body font you use) in `<head>` to avoid a font swap under the first button label.
+- CSS order is the same as every other stack: **Modus → your globals → Tailwind**, never the reverse.
+
+## Layer 3 — `:not(:defined)` + SSR skeleton (cover the upgrade gap)
+
+Between SSR and custom-element upgrade, unresolved `<modus-wc-*>` tags are **unknown elements**—they render inline and look broken. Two lines of global CSS plus a **dimensional skeleton** close that gap with **zero layout shift**:
+
+```css
+/* app/globals.css */
+modus-wc-navbar:not(:defined),
+modus-wc-side-navigation:not(:defined),
+modus-wc-button:not(:defined),
+modus-wc-card:not(:defined),
+modus-wc-typography:not(:defined),
+modus-wc-icon:not(:defined) {
+  visibility: hidden;
+}
+```
+
+For **above-the-fold chrome** (navbar, side nav rail), render a **plain HTML/CSS skeleton** at the same dimensions from the server component so the page has real boxes while Modus JS is in flight. The skeleton uses the same Modus CSS variables (`--modus-wc-color-base-page`, `--modus-wc-color-base-100`) so it is theme-correct out of the gate. When `customElements.whenDefined('modus-wc-navbar')` resolves on the client, the `:not(:defined)` rule stops applying and the real navbar takes over **in place**—no flash, no CLS.
+
+Gate the rule behind an `html.js` class (set by the FOUC script) if you need to remain readable in **no-JS crawlers**.
+
+## Layer 4 — Client boundary, providers, asset path, React 19 patch
+
+Modus React wrappers (`ModusWcNavbar`, `ModusWcCard`, `ModusWcButton`, …) are **client-only**. In App Router:
+
+- Put every Modus tag (and anything that imports from `@trimble-oss/moduswebcomponents-react`) inside a file starting with `'use client'`.
+- Do **not** wrap those files in `next/dynamic({ ssr: false })`. The `'use client'` boundary already prevents server rendering of Modus internals; `dynamic({ ssr: false })` adds a second waterfall and delays hydration.
+- Mount **one** `ModusWcThemeProvider` near the root of the client tree (e.g. in `app/providers.tsx`) and call **`setAssetPath`** from `@trimble-oss/moduswebcomponents/loader` **before** it:
+
+  ```ts
+  setAssetPath(
+    `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/`,
+  );
+  ```
+
+  Mirror whatever `basePath` is set in `next.config.js`. Wrong paths break icons and lazy chunks **in production only**.
+- Apply the **React 19 shadow DOM patch** (same guarded `Node.prototype.removeChild` / `insertBefore` approach documented in [modus-wc-integration.mdc](./modus-wc-integration.mdc) — React 19 and shadow DOM section). Import it once from `app/providers.tsx`, above the provider.
+- **Do not** wrap Modus subtrees in `React.StrictMode`. Dev double-mount + named slots produces **`removeChild`/NotFoundError**. Put `StrictMode` around non-Modus parts if you want it.
+- Scroll ownership: the Next.js equivalent of `#root > modus-wc-theme-provider` is **`body > modus-wc-theme-provider`** (Next does not wrap children in `#root`). Apply the flex chain from [modus-wc-integration.mdc](./modus-wc-integration.mdc) (viewport height / scroll ownership section) to `html`, `body`, and `modus-wc-theme-provider` when `<main>` must own scroll.
+
+## Layer 5 — Stencil `hydrate` app (DSD SSR)
+
+**Declarative Shadow DOM (DSD)** SSR is when the browser receives `<template shadowrootmode="open">` already populated with a component’s shadow markup and styles. The Modus package is expected to expose Stencil’s **hydrate** app (e.g. subpath **`@trimble-oss/moduswebcomponents/hydrate`** with **`renderToString`** / **`hydrateDocument`**) so SSR frameworks can post-process HTML before streaming.
+
+**What it unlocks in Next.js:** A `React.cache`-wrapped helper can run RSC output through **`hydrateDocument`** so above-the-fold chrome can arrive with **shadow styles on the wire**. Where you apply it consistently, **Layer 3** becomes belt-and-braces (hiding unresolved hosts) rather than the primary defense against **inside-shadow** pop-in.
+
+**What you still need after hydrate is available — keep Layers 1–4:**
+
+- **Layer 1 — FOUC script:** Hydrate does **not** set `<html>` theme. The inline script in `<head>` must still run before first paint (`data-theme`, `data-mode`, resolved `light`/`dark` class) or theme flash and token drift return.
+- **Layer 2 — Global CSS, icons, fonts:** Keep importing **`modus-wc-styles.css`** from `app/layout.tsx`, linking **`modus-icons.css`**, and preloading woff2 / body font. Those cover **layout tokens**, **light-DOM** surfaces, and **icon fonts**—not replaced by per-tag shadow serialization alone.
+- **Layer 3 — `:not(:defined)` + skeleton (recommended fallback):** Use on routes or subtrees where you **do not** pass HTML through `hydrateDocument`, during migration, or as insurance for any **un-upgraded** host before client `customElements.define` runs. DSD does not remove the need for **`'use client'`** Modus trees—only the server string you choose to post-process is fully pre-styled in shadow.
+- **Layer 4 — Client boundary:** **`ModusWcThemeProvider`**, **`setAssetPath`** (origin + `basePath`), and the **React 19 shadow DOM patch** stay required. Hydrate improves **server HTML**; React still hydrates client components, registers elements, and wires Modus events. **`setAssetPath`** remains mandatory for correct lazy chunks and icons under subpath deploys.
+
+Confirm **`serializeShadowRoot`** / **`fullDocument`** options against the version you ship; not every route must opt into DSD post-processing if cost or pipeline constraints apply.
+
+## Checklist (copy into your PR template)
+
+- [ ] `@trimble-oss/moduswebcomponents/modus-wc-styles.css` imported from `app/layout.tsx` (server component).
+- [ ] FOUC script in `<head>` sets `data-theme`, `data-mode`, and resolved `light`/`dark` class on `<html>` before paint.
+- [ ] `modus-icons.css` linked in `<head>`, woff2 preloaded.
+- [ ] `:not(:defined)` rule + SSR skeleton for above-the-fold chrome.
+- [ ] Modus tags only inside `'use client'` files (no `next/dynamic({ ssr: false })` wrapping).
+- [ ] `setAssetPath` called with `origin + basePath` before `ModusWcThemeProvider`.
+- [ ] React 19 shadow DOM patch imported once in `app/providers.tsx`.
+- [ ] No `React.StrictMode` around Modus trees.
+- [ ] DevTools → Network: Modus CSS lands in the initial document response, not a late chunk.
+- [ ] Lighthouse: CLS ≤ 0.05 on pages with navbar + side nav.
+- [ ] If using **Layer 5** (`hydrateDocument`): helper runs before streaming; spot-check **View Source** / Elements for DSD templates on shell tags you post-process.
+
+## Anti-patterns (do not ship)
+
+- Using `next/dynamic(() => import('@trimble-oss/moduswebcomponents-react').then(m => m.ModusWcCard), { ssr: false })`—strictly worse than a `'use client'` file.
+- Putting `<modus-wc-*>` tags directly inside a Server Component—the tag is defined in a client bundle; the server has no way to know.
+- Re-declaring Modus CSS variables per page to “fix” theming—set them once via `data-theme` on `<html>` and let component variables cascade.
+- Shadow-piercing with `::part` / `::slotted` when a documented `customClass` or slot exists (see [modus-essentials.mdc](./modus-essentials.mdc) UX defaults).
+- Relying on `useEffect` to set `data-theme`—it runs **after** first paint, so you get exactly the FOUC the inline script prevents.
+
+## Related
+
+- **Skill:** [.cursor/skills/modus-wc-nextjs/SKILL.md](../skills/modus-wc-nextjs/SKILL.md) — full Next.js integration contract: file-level snippets for `app/layout.tsx`, `app/providers.tsx`, `app/globals.css`, the asset-path helper, Pages Router, CSP, anti-patterns, and common problems.
+- **React + slotted hosts:** [.cursor/skills/modus-wc-react-slotted-hosts/SKILL.md](../skills/modus-wc-react-slotted-hosts/SKILL.md) — slot patterns that avoid `removeChild` crashes under Next.js dev.
+- **Side navigation + push layout:** [.cursor/skills/modus-wc-side-navigation/SKILL.md](../skills/modus-wc-side-navigation/SKILL.md) — applies the same in a Next.js `'use client'` shell.
+- **Icons setup:** [.cursor/skills/modus-wc-icons-setup/SKILL.md](../skills/modus-wc-icons-setup/SKILL.md) — font `@font-face` + preload pattern.
+- **MCP lookup:** [.cursor/skills/modus-wc-mcp/SKILL.md](../skills/modus-wc-mcp/SKILL.md) — verify props/events/slots against the installed version.

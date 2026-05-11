@@ -1,0 +1,207 @@
+---
+description: Angular + Modus—bootstrap, events, and a non-negotiable app shell contract (viewport scroll, flex chain, :host vs styles.scss) plus dense-page spacing without Tailwind.
+globs:
+  - "**/*.component.ts"
+  - "**/*.component.html"
+  - "**/*.component.scss"
+  - "**/styles.scss"
+  - "**/angular.json"
+alwaysApply: false
+---
+
+# Modus Web Components — Angular
+
+Use this alongside [.cursor/rules/modus-essentials.mdc](./modus-essentials.mdc) (packages, theme, Modus-only surface) and [.cursor/rules/modus-wc-integration.mdc](./modus-wc-integration.mdc) (bootstrap, `setAssetPath`, MCP). For **Vue**, see [modus-vue.mdc](./modus-vue.mdc).
+
+Do **not** assume **React** wrapper props (**`onInputChange`** on **`ModusWc*`**), **`ModusWcThemeProvider`**, or **Next.js** setup—use Angular + Modus package docs for your **semver**.
+
+## App shell — layout and scroll (non-negotiable)
+
+When you **scaffold**, **refactor**, or **touch** the app shell ( **`html`/`body`**, **`app-root`**, **`modus-wc-theme-provider`**, viewport wrapper, navbar + side nav + **`<main>`** scroll), you **must** complete this section. [modus-wc-integration.mdc](./modus-wc-integration.mdc) often illustrates **React + `#root`**; **translate** every flex/scroll rule to **`app-root` → `modus-wc-theme-provider` → … → `main`**. For **side nav + `targetContent` + navbar `mainMenuOpen`**, follow [**modus-wc-side-navigation**](../skills/modus-wc-side-navigation/SKILL.md) and the essentials **Side navigation shell** checklist.
+
+### `modus-wc-navbar` with `modus-wc-side-navigation` (Angular pitfalls)
+
+The navbar **always** renders a **Trimble (or `logo-name`)** control in the toolbar **start** when **`visibility.logo`** is not **`false`**. Do **not** also project **`modus-wc-logo`** into **`slot="start"`** unless you have set **`visibility.logo: false`** and intentionally own the whole start cluster — otherwise you ship **two logos** (“Trimble Trimble”).
+
+When the hamburger should **toggle the left rail** but you are **not** using **`slot="main-menu"`** for real content, do **not** mirror **`[mainMenuOpen]="sideNavExpanded"`** (or similar). An “open” main menu turns on the navbar’s **empty** **`.main-menu`** flyout (full-height **`display: block`** in Modus CSS), which stacks beside **`modus-wc-side-navigation`** and reads as a **second chrome bar** on narrow breakpoints. Prefer:
+
+- **`[mainMenuOpen]="false"`** so that flyout never opens, and
+- **`(mainMenuOpenChange)`** → toggle your **`expanded`** / drawer state (or set it from **`detail`** on overlay-only flows **only** if you populate **`slot="main-menu"`** or otherwise avoid the empty panel).
+
+**`collapseOnClickOutside` vs navbar hamburger:** With **`collapseOnClickOutside="true"`**, **`modus-wc-side-navigation`** registers **`document.addEventListener('click', …, true)`** and treats any click whose **`composedPath()`** does not include its inner **`<nav>`** ref as outside. Clicks on **`modus-wc-navbar`** (hamburger, logo, utilities) are **outside** that ref, so **capture runs before** the button handler: the side nav **sets `expanded = false`**, then **`(mainMenuOpenChange)`** may **toggle** your Angular **`expanded`** back **open** — one tap looks like collapse + glitch or broken layout. If the navbar drives the same overlay, set **`[collapseOnClickOutside]="false"`** and dismiss from **`#main-content` `(click)`** (and/or a full-viewport backdrop), or add **`composedPath`-safe exclusions** if you customize.
+
+If product needs the **menu control on desktop** as well as overlay, keep **`visibility.mainMenu: true`** at desktop widths — do **not** gate **`mainMenu`** with **`!isDesktop`** unless the rail is opened **only** from the rail itself and the spec says to hide the navbar control.
+
+### Where styles live (prevents collapse + drift)
+
+With **default emulated encapsulation**, **`app.component.scss`** rules on **`:host`** target **`app-root`** and typically **override** global **`styles.scss`** rules that also select **`app-root`**. **Never split** the viewport flex contract across two files in a conflicting way.
+
+| Concern | `styles.scss` (global) | `app.component.scss` (`:host` / same view) |
+|---------|-------------------------|---------------------------------------------|
+| **`html`, `body`** — height cap, **`overflow: hidden`** when **`main`** scrolls | yes | no |
+| **`#root-viewport`**, **`.app-shell`**, **`.app-body-row`**, **`#main-content`**, rail wrappers, navbar slot **`[hidden]`** overrides | yes | only if you accept duplication |
+| **`app-root`** — **`display: flex`**, **`flex-direction: column`**, **`height`/`max-height`**, **`min-height: 0`**, **`overflow: hidden`** | **avoid** (loses to **`:host`**) | **yes** — **authoritative** |
+| **Direct child** **`modus-wc-theme-provider`** — flex column, **`flex: 1 1 0`**, **`min-height: 0`** | **avoid duplicating** | **yes** — **`:host > modus-wc-theme-provider`** |
+| **Routed** KPI grids, page stacks, card bands | no | **feature** **`*.component.scss`** |
+
+**Anti-patterns (do not ship):**
+
+- **`:host { display: block; }`** (or any **`display`** on **`:host`** that is not the shell flex column) while the shell expects **`app-root`** to be a **flex** container — **collapses** height/`flex` for children.
+- **`overflow: auto`** on **`main`** only, without **`html`/`body`** lock and without **`min-height: 0`** + **`flex: 1 1 0`** on **every** link from **`app-root`** down to **`main`** — **no `main` scrollbar** or **document** scroll steals the wheel.
+- **`flex: 1`** alone on critical flex children where **`min-height: auto`** blocks shrinking — prefer **`flex: 1 1 0`** **and** **`min-height: 0`** on that chain (see mandatory list below).
+
+**Reference shape** (adapt class names; keep **`:host`** and **`:host > modus-wc-theme-provider`** on the root component that owns the shell template):
+
+```scss
+// app.component.scss — shell host (authoritative for app-root)
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+:host > modus-wc-theme-provider {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+}
+```
+
+```scss
+// styles.scss — document + inner shell (example; extend with your rail/navbar rules)
+html,
+body {
+  height: 100%;
+  max-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+}
+
+#main-content {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+```
+
+### Viewport and flex chain (mandatory when `<main>` scrolls)
+
+DOM chain: **`html` → `body` → `app-root` → `modus-wc-theme-provider` → viewport wrapper (e.g. `#root-viewport`) → row with chrome + `<main>`**. There is **no** React **`#root`** — map [modus-wc-integration.mdc](./modus-wc-integration.mdc) **scroll ownership** to this tree.
+
+1. **Lock document scroll:** **`html` and `body`** — **`height: 100%`** (or **`100dvh`**), **`max-height: 100dvh`**, **`overflow: hidden`** when **`main`** owns vertical scroll.
+2. **Cap `app-root`:** **`display: flex`**, **`flex-direction: column`**, **`height` / `max-height: 100dvh`**, **`min-height: 0`**, **`overflow: hidden`** — author on **`app.component.scss` `:host`** (see table above). A global **`app-root { … }`** in **`styles.scss`** alone is **not** enough if **`:host`** overrides **`display`**.
+3. **`modus-wc-theme-provider`:** **`display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0`** — use **`:host > modus-wc-theme-provider`** on the root shell component.
+4. **Every flex link down to `main`:** **`min-height: 0`** on flex children in the chain; **`flex: 1 1 0`** on segments that must absorb height (**not** only **`flex: 1`** where **`min-height: auto`** blocks shrink).
+5. **Scroll surface:** **`#main-content`** / **`main`** — **`flex: 1 1 0`**, **`min-width: 0`**, **`overflow: auto`**; optional **`overscroll-behavior: contain`**.
+6. **Browser verify:** **`main.scrollHeight > main.clientHeight`**, wheel updates **`main.scrollTop`**; the document must not act as the primary vertical scroller for app content.
+7. **Encapsulation:** do not negate the shell with **`:host { display: block; }`** or other **`display`** values that are not the flex column contract (see **Anti-patterns**).
+
+These rules **do not** run at compile time — **`ng build`** passes even when scroll or flex is wrong. Re-check in the browser after any shell or **`:host`** style change.
+
+### Page layout and spacing (dense dashboards, no Tailwind)
+
+[modus-layout.mdc](./modus-layout.mdc) often assumes **Tailwind** or blueprint **`globals.css`**. Without them, match the same rhythm in plain CSS.
+
+1. **Dense `gap` / grids** — prefer **feature** **`*.component.scss`** over a lone fragile global in **`styles.scss`**; **`modus-wc-styles.css`** preflight/globals can make **`gap`** look missing in the browser.
+2. **One vertical stack wrapper** per page with explicit **`gap`**; avoid relying **only** on **`.a + .b { margin-top }`** (fragile when Angular inserts comments or wrappers between siblings).
+3. **`var(--modus-wc-spacing-*)`** with **readable fallbacks** (e.g. `var(--modus-wc-spacing-md, 0.75rem)`).
+4. **`modus-wc-card`** on analytics-style pages: start **`padding="comfortable"`** unless the row is intentionally toolbar-dense ([modus-layout.mdc](./modus-layout.mdc)).
+5. **Shell** (**`#main-content`**, gutters, rail) in **`styles.scss`** when global; **route-specific** bands in **routed** **`*.component.scss`**.
+
+### Shell + route layout — PR checklist
+
+**Scroll / flex**
+
+- [ ] **`html`/`body`** locked when **`main`** scrolls.
+- [ ] **`:host`** = viewport flex column; **no** conflicting **`display: block`** (or other non-flex **`display`**) on the root shell.
+- [ ] **`:host > modus-wc-theme-provider`** = flex column + **`flex: 1 1 0`** + **`min-height: 0`**.
+- [ ] **`#root-viewport` → … → `main`**: **`min-height: 0`**, **`flex: 1 1 0`** where appropriate; **`main`** has **`overflow: auto`**.
+- [ ] **`ng serve`**: tall route scrolls inside **`main`**, not **`window`**.
+
+**Navbar + side nav**
+
+- [ ] **One logo** — not **`visibility.logo`** (default on) **and** **`slot="start"`** **`modus-wc-logo`** unless **`logo: false`** and a deliberate custom start row.
+- [ ] **No empty `main-menu` flyout** while **`modus-wc-side-navigation`** owns the drawer — avoid **`mainMenuOpen`** mirroring **`expanded`** with an unused **`main-menu`** slot; use **`[mainMenuOpen]="false"`** + **`(mainMenuOpenChange)`** to toggle the rail (or fill **`slot="main-menu"`**).
+- [ ] **`collapseOnClickOutside`** — if **`false`**, document capture no longer races the navbar hamburger; close overlay from **`#main-content`** **`(click)`** / backdrop instead. If **`true`**, navbar clicks are still “outside” the side-nav **`<nav>`** ref and can fight **`(mainMenuOpenChange)`** toggles.
+- [ ] **`visibility.mainMenu`** matches product: if the hamburger must work **above** the push/overlay breakpoint, do **not** hide **`mainMenu`** only on “desktop”.
+
+**Spacing**
+
+- [ ] KPI / multi-card **`gap`** in **component SCSS** (or Tailwind), not only an unscoped global one-liner.
+- [ ] Stacked sections use a **column stack + `gap`**, not only adjacent-sibling margins.
+- [ ] Chart/table cards: **`padding="comfortable"`** or a documented exception.
+- [ ] **Light + dark**: sections and cards visibly separated (not edge-to-edge).
+
+## Packages
+
+- **`@trimble-oss/moduswebcomponents`** + **`@trimble-oss/moduswebcomponents-angular`** at **paired** semver (see essentials **Packages** table: `MVC=…` then `…-ng{17|18|19}` matching your Angular major).
+- Run **`npm view`** so base and **`-angular`** stay on the same **MVC** line.
+
+## Bootstrap
+
+1. Call **`defineCustomElements()`** from the Angular integration loader **before** first paint of Modus tags — follow **`get_modus_implementation_data`** with **`docs_name`:** **`angular`** and **`version`** from **`package.json`**.
+2. Allow custom elements in NgModules or standalone components: **`CUSTOM_ELEMENTS_SCHEMA`** (or current documented approach for your Angular version).
+3. **`setAssetPath`:** when SVG/assets 404 in prod or under **`deployUrl`** / **`base href`**, set the Stencil asset base so chunks resolve — see **Bootstrap and Stencil assets** in [modus-wc-integration.mdc](./modus-wc-integration.mdc).
+
+## Custom events in templates
+
+Stencil uses **camelCase** event names on the host. In Angular templates bind with parentheses:
+
+| Host event | Angular binding |
+|------------|-------------------|
+| **`inputChange`** | **`(inputChange)="…"`** |
+| **`buttonClick`** | **`(buttonClick)="…"`** |
+
+Confirm **`$event`** / **`detail`** typing for your wrapper version via MCP **`get_modus_implementation_data`** → **`angular`** — do not mirror React’s **`onInputChange`** prop naming unless the Angular docs explicitly expose it.
+
+## Theme + canvas charts (Chart.js)
+
+**Canvas** libraries (e.g. **Chart.js**) need **parseable** colors (`rgb()` / hex), not raw `getPropertyValue` on tokens that use **`light-dark()`** — see [**modus-wc-chart-colors**](../skills/modus-wc-chart-colors/SKILL.md) **§6** (`colorFromVar`, `chart.update()`).
+
+**Angular-specific:** Do **not** rely on **`MutationObserver`** on `<html>` and/or **`document.addEventListener('themeChange')`** alone to refresh charts. With **Stencil + Angular**, those hooks are easy to miss or race. Ship an **app-level sync event** wired from the same **`(themeChange)`** handler you already use for the Modus theme switcher:
+
+1. **One exported constant** for the event name (single source of truth), e.g. `src/app/modus-chart-theme-sync.event.ts` exporting `MODUS_CHART_THEME_SYNC_EVENT`.
+2. **`AppComponent`** (or whichever component binds **`(themeChange)`** on **`modus-wc-theme-switcher`**): after **`localStorage`** / config (and only in the browser, e.g. **`isPlatformBrowser`**), dispatch  
+   **`window.dispatchEvent(new CustomEvent(MODUS_CHART_THEME_SYNC_EVENT, { bubbles: true }))`**.  
+   The Modus store has already updated **`document.documentElement`** (`data-theme`, `data-mode`, classes) before this handler runs.
+3. **Each Chart.js (canvas) component:** register **`window.addEventListener(MODUS_CHART_THEME_SYNC_EVENT, handler)`** in **`ngAfterViewInit`**, **`window.removeEventListener`** in **`ngOnDestroy`**. In the handler: re-resolve every series / grid / tick / tooltip color with **`colorFromVar`** (per the skill), then **`chart.update()`** (default mode is fine).
+4. **Optional:** keep a **`MutationObserver`** on **`document.documentElement`** with **`attributes: true`** for theme changes that bypass the switcher; keep **`matchMedia('(prefers-color-scheme: dark)')`** **`change`** if you support **system** mode.
+5. **Stale `getComputedStyle`:** after setting **`colorProbe.style.color = \`var(${name})\``**, run **`void colorProbe.offsetHeight`** before reading **`getComputedStyle(colorProbe).color`**; before batch-reading the palette, **`void document.documentElement.offsetHeight`** can help after a theme flip.
+
+**PR checklist (canvas charts + Modus theme)**
+
+- [ ] Palette uses **resolved** colors (**`colorFromVar`** or equivalent), not raw **`getPropertyValue`** on semantic tokens (**§6**).
+- [ ] **`MODUS_CHART_THEME_SYNC_EVENT`** (or your project’s equivalent) is dispatched from the **`themeChange`** shell handler in the browser.
+- [ ] Chart components **listen on `window`** and **remove** the listener on destroy.
+- [ ] Light/dark toggle updates the chart **without** a full page reload.
+
+## Reading values
+
+- Text-like controls: **`$event.detail?.target?.value`** where MCP defines **`InputEvent`** — **not** **`String($event.detail)`**.
+- **Select:** **`options`** property API — **not** slotted **`<option>`** (see [**modus-wc-form-inputs**](../skills/modus-wc-form-inputs/SKILL.md)).
+- Checkbox/switch/radio: **`detail`** is also a native **`InputEvent`** in 2.x — read **`$event.detail?.target?.checked`** (not `$event.detail.newValue`, which was the 1.0 shape).
+
+## Slots and conditional content
+
+- Use **`slot="..."`** as documented. Heavy mount/unmount toggling next to slotted Modus hosts can fight projection — prefer stable structures or visibility toggles consistent with your Angular patterns; the underlying issue matches what [**modus-wc-react-slotted-hosts**](../skills/modus-wc-react-slotted-hosts/SKILL.md) describes for React.
+
+## Do not import from React-only docs
+
+- Theme: use **`get_modus_implementation_data`** **Angular** guidance, not **`ModusWcThemeProvider`** snippets from React.
+- **Next.js** FOUC / **`'use client'`** — only if you embed Angular oddly; default SPA Angular ignores [modus-nextjs.mdc](./modus-nextjs.mdc).
+
+## Docs lookup
+
+- **`get_modus_implementation_data`** — **`angular`**, **`form-inputs`**, **`accessibility`**.
+- **`get_modus_component_data`** — always pass installed **`version`**.
+- **Charts (tokens, Chart.js, Recharts):** [**modus-wc-chart-colors**](../skills/modus-wc-chart-colors/SKILL.md) — Angular **canvas** theme sync: **Theme + canvas charts (Chart.js)** above.
+
+See [**modus-wc-mcp**](../skills/modus-wc-mcp/SKILL.md).

@@ -1,0 +1,285 @@
+---
+description: Modus Web Components event handling (inputChange, buttonClick, tabChange, pageChange) and the small set of cross-cutting CSS overrides apps commonly need.
+globs:
+  - "**/*.{tsx,ts,vue,jsx,js,html,css}"
+alwaysApply: false
+---
+
+# Modus Web Components — events and overrides
+
+Use this alongside [modus-essentials.mdc](./modus-essentials.mdc) (UX defaults), [modus-components-patterns.mdc](./modus-components-patterns.mdc) (per-component scaffolding), [modus-wc-integration.mdc](./modus-wc-integration.mdc) (cross-component event/detail catalog), and the [**modus-wc-form-inputs** skill](../skills/modus-wc-form-inputs/SKILL.md) (full event/detail migration table). **This file** is the per-control how-to for handlers, plus the small list of CSS overrides that show up across most apps.
+
+For framework-specific event-binding syntax (React `onButtonClick` vs Vue `@button-click` vs Angular `(buttonClick)`), see [modus-wc-integration.mdc](./modus-wc-integration.mdc) → **Events and data handling**.
+
+---
+
+## Event Handling Patterns
+
+### Text Input
+
+```tsx
+<ModusWcTextInput
+  value={value}
+  onInputChange={(e: CustomEvent) => {
+    const newValue = e.detail?.target?.value || '';
+    setValue(newValue);
+  }}
+/>
+```
+
+`detail` is a native **`InputEvent`** — read `e.detail?.target?.value`. **Never** `String(e.detail)` (yields `"[object InputEvent]"`).
+
+### Button Click
+
+```tsx
+<ModusWcButton onButtonClick={handleClick}>
+  Click Me
+</ModusWcButton>
+```
+
+**Important:** Use `onButtonClick`, NOT `onClick`.
+
+### Checkbox / Switch / Radio
+
+In Modus 2.x, **`inputChange`** on these controls emits **`detail: InputEvent`** (same as text inputs) — read the boolean from **`e.detail?.target?.checked`**. Do **not** pass `e.detail` directly to `setState` (that stores the event), and do **not** read `e.detail.newValue` (that was the 1.0 shape and is gone in 2.0). Full pattern, helpers, and reasoning: [**modus-wc-form-inputs** skill](../skills/modus-wc-form-inputs/SKILL.md).
+
+```tsx
+import { readInputChecked } from "@/utils/modusFormEvents";
+
+<ModusWcCheckbox
+  value={isChecked}
+  onInputChange={(e: CustomEvent) => setIsChecked(readInputChecked(e))}
+/>
+
+<ModusWcSwitch
+  value={isEnabled}
+  onInputChange={(e: CustomEvent) => setIsEnabled(readInputChecked(e))}
+/>
+```
+
+**Important:** Use the **`value`** prop (boolean), **not** `checked` (a 1.0 prop name).
+
+### Select
+
+The select renders its dropdown options **from the `options: ISelectOption[]` prop**, not from slotted `<option>` children. Slotted options become light-DOM orphans next to an empty combobox. Read the chosen value from **`e.detail?.target?.value`** (the `<select>` is the underlying element).
+
+```tsx
+const options: ISelectOption[] = [
+  { label: "Option 1", value: "opt1" },
+  { label: "Option 2", value: "opt2" },
+];
+
+<ModusWcSelect
+  label="Choose one"
+  value={selected}
+  options={options}
+  onInputChange={(e: CustomEvent) => {
+    setSelected(readInputString(e));
+  }}
+/>
+```
+
+### Tabs
+
+`tabChange` emits **`{ previousTab: number; newTab: number }`** in 2.x. Drive the **`tabs`** array (`ITab[]`) and **`activeTabIndex`** as state; do **not** rely on internal selection. Full pattern, slot-content variants, vertical/scrollable layouts: [**modus-wc-tabs** skill](../skills/modus-wc-tabs/SKILL.md).
+
+```tsx
+<ModusWcTabs
+  tabs={tabsList}
+  activeTabIndex={activeIndex}
+  onTabChange={(e: CustomEvent<{ previousTab: number; newTab: number }>) => {
+    setActiveIndex(e.detail.newTab);
+  }}
+/>
+```
+
+### Pagination
+
+`pageChange` emits **`{ newPage: number; prevPage: number }`** with **1-based** `newPage`. Drive `count` (total pages) and `page` (current page) as state. Full pattern (server vs client paging, page-size selector, table footer pairing): [**modus-wc-pagination** skill](../skills/modus-wc-pagination/SKILL.md).
+
+```tsx
+<ModusWcPagination
+  count={totalPages}
+  page={page}
+  size="sm"
+  onPageChange={(e: CustomEvent<{ newPage: number; prevPage: number }>) => {
+    setPage(e.detail.newPage);
+  }}
+/>
+```
+
+### Autocomplete
+
+```tsx
+<ModusWcAutocomplete
+  ref={autocompleteRef}
+  onInputChange={(e: CustomEvent) => {
+    const value = e.detail?.target?.value || '';
+    handleSearch(value);
+  }}
+/>
+
+// Set items via ref
+useEffect(() => {
+  if (autocompleteRef.current) {
+    autocompleteRef.current.items = itemsList;
+  }
+}, [itemsList]);
+```
+
+Full pattern (multi-select, async search, items API): [**modus-wc-autocomplete** skill](../skills/modus-wc-autocomplete/SKILL.md).
+
+### Common bugs
+
+- `String(e.detail)` for text inputs → `"[object InputEvent]"` (because `detail` is the event, not the string value).
+- `setState(e.detail)` for booleans → stores the `InputEvent` instead of the boolean.
+- `e.detail.newValue` for checkbox/switch/radio → was the 1.0 shape, removed in 2.0.
+- `e.detail` for tabs / pagination → the object, not the index/page; use `e.detail.newTab` / `e.detail.newPage`.
+- Treating `modus-wc-modal` as if it had `visible` / `onClose` → both removed in 2.0; uses native `<dialog>` semantics ([modus-components-patterns.mdc](./modus-components-patterns.mdc) → **Modal Dialog**).
+
+For the full cross-component event/detail catalog (every component's event name and `detail` shape in one table), see [modus-wc-integration.mdc](./modus-wc-integration.mdc) → **Events and data handling**.
+
+---
+
+## Common CSS Overrides
+
+These overrides are intentionally minimal — Modus 2.x defaults are usually fine. Add them only when you see the matching symptom in your app, and **scope** them (e.g. `.app-main modus-wc-…`) so the shell (`modus-wc-navbar`, `modus-wc-side-navigation`) is unaffected. Confirm part names with **Modus Docs MCP** for your `version` before reaching for `::part(…)` selectors.
+
+### Button Text Wrapping
+
+Prevent button text from wrapping:
+
+```css
+button, modus-wc-button {
+  white-space: nowrap !important;
+}
+
+button *, modus-wc-button * {
+  white-space: nowrap !important;
+}
+```
+
+### Card Title Width
+
+Give title slots **full width** and a **flex row** so inner wrappers can align, but **do not** set **`justify-content: space-between`** on **`[slot="title"]`** globally—that splits **icon + typography** to opposite ends when there are no trailing actions. Use **`justify-between`** only in **markup** for rows that include both a **leading** cluster and **trailing** controls ([modus-layout.mdc](./modus-layout.mdc) **Title row**).
+
+```css
+modus-wc-card [slot="title"],
+modus-wc-card .modus-wc-card-title {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+```
+
+### Divider Margins
+
+Remove default margins from dividers:
+
+```css
+modus-wc-divider,
+.modus-wc-divider {
+  margin: 0 !important;
+}
+```
+
+### Alert Compact Styling
+
+```css
+modus-wc-alert {
+  padding: 0.5rem !important;
+}
+
+modus-wc-alert i.modus-wc-icon {
+  font-size: var(--modus-wc-icon-size-sm, 1rem) !important;
+}
+```
+
+### Tabs Full Width
+
+```css
+modus-wc-tabs {
+  width: 100% !important;
+  overflow-x: auto !important;
+}
+
+modus-wc-tabs button[role="tab"] {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+```
+
+### Navbar `slot="center"` — Tailwind `hidden` does not collapse the row
+
+**Symptom:** **`hidden`**, **`max-md:hidden`**, or **`hidden md:flex`** on a **`div slot="center"`** does not hide the center title under **`modus-wc-navbar`**, **or** resizing throws **`removeChild` / NotFoundError** after hiding center content by **conditional JSX**.
+
+**Cause (cascade — utilities):** **`modus-wc-navbar`** ships **unlayered** rules such as **`modus-wc-navbar .modus-wc-navbar [slot=center] { display: flex; … }`**. Declarations in Tailwind’s **`@layer utilities`** **lose to unlayered** Modus styles **regardless of `@import` order**, so utility-based **`display: none`** never wins.
+
+**Cause (`[hidden]` + `flex` same node):** Putting **Tailwind `flex`** (or **`hidden md:flex`**) on the **same** element as **`hidden`** applies **author `display: flex`**, which **overrides** the **UA** **`hidden`** hint — the center chrome **stays visible**.
+
+**Cause (React crash):** **Mount/unmount** of the **`slot="center"`** root on breakpoints — Stencil **reparents** slotted light DOM; React **`removeChild`** can desync — see [**modus-wc-react-slotted-hosts**](../skills/modus-wc-react-slotted-hosts/SKILL.md).
+
+**Fix:** **Never** `{isDesktop ? <div slot="center">…</div> : null}`. Keep **one** stable **`div slot="center"`**; set **`hidden={!isDesktop}`** (aligned with **`md`** / **`visibility`** / **`condensed`**); when **`hidden`**, **omit** **`flex`** / **`flex-1`** / other **`display`-setting** utilities from **`className`**; when visible, apply the full flex row classes. Add **unlayered** CSS **after** **`@import 'tailwindcss'`**:
+
+```css
+.app-shell modus-wc-navbar [slot='center'][hidden] {
+  display: none !important;
+}
+```
+
+Scope under the real shell root (e.g. **`.app-shell`**). **Do not** rely on **`modus-wc-navbar.app-shell-navbar`** on the **host** or **`>`** direct-child selectors — **`customClass`** may not land on the host; prefer **`[slot='center'][hidden]`** as above.
+
+Full narrative: [modus-layout.mdc](./modus-layout.mdc) → **App shell navbar — `condensed` and hiding `slot="center"`**.
+
+### Lists — Daisy base rules vs `@layer utilities` (checklists, icon rows)
+
+**Symptoms:** **`ul`** shows **filled disc bullets**, and each **`li`** stacks **`modus-wc-icon`** above **`modus-wc-typography`** even though JSX uses **`list-none`** and **`flex`** on **`li`**.
+
+**Cause:** **`modus-wc-styles.css`** embeds DaisyUI-derived base selectors **without `@layer`** (among them **`ul { list-style-type: disc }`** and **`li { display: list-item }`**). Utilities such as **`list-none`** and **`flex`** from **`@tailwindcss`** / Tailwind **`@layer utilities`** lose the cascade **to unlayered styles** regardless of `@import` order in your entry CSS.
+
+**Fix:** Add **unlayered**, **scoped** rules after your **`@import '@trimble-oss/moduswebcomponents/modus-wc-styles.css'`** and **`tailwindcss`** (same file apps use for viewport / shell)—use a **named class on the **`ul`** (e.g. **`.app-checklist-rows`**) so specificity beats bare **`ul`/`li`** without **`!important`**. Pair with markup: **`flex flex-col`** on the list via **`display: flex; flex-direction: column; gap: …`** on **`.app-checklist-rows`**, and **`flex-direction: row; align-items: flex-start`** on **`> li`**. Optionally **`> li::marker { content: none; }`** where needed. Align gaps with **`var(--modus-wc-spacing-*)`**.
+
+```css
+/* Place in app global CSS after Modus + Tailwind imports — see modus-layout.mdc → Dense metrics / lists */
+.app-checklist-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--modus-wc-spacing-sm, 0.5rem);
+}
+
+.app-checklist-rows > li {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--modus-wc-spacing-sm, 0.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-checklist-rows > li::marker {
+  content: none;
+}
+```
+
+```tsx
+<ul className="app-checklist-rows">
+  {items.map((label) => (
+    <li key={label}>
+      <ModusWcIcon decorative name="check_circle" size="sm" customClass="shrink-0 …" />
+      <ModusWcTypography
+        hierarchy="p"
+        size="sm"
+        label={label}
+        customClass="!m-0 min-w-0 flex-1"
+      />
+    </li>
+  ))}
+</ul>
+```
+
+Reuse or rename **`.app-checklist-rows`** per product; **scope** beneath **`.page-main` / `main`** if you prefer stricter containment. Overview: [modus-wc-integration.mdc](./modus-wc-integration.mdc) → **Bootstrap** (cascade caveat).

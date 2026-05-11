@@ -1,0 +1,32 @@
+---
+description: >-
+  Prevents Modus side-nav drift — app-shell root class contract, fixed rail width vs main inset,
+  and manual merge checklist. Use with modus-wc-side-navigation skill and modus-essentials checklist.
+globs: "**/AppShell.tsx,**/shellLayout.ts,**/globals.css,**/constants/layout.ts"
+alwaysApply: false
+---
+
+# Modus — side navigation
+
+## Non-negotiable: root class matches CSS
+
+Global shell rules in the project **`globals.css`** (often **`src/styles/globals.css`**) scope margins under **`.app-shell`** (e.g. `.app-shell #main-content`, `.app-shell.side-nav-push-expanded`, `.app-shell.side-nav-overlay-collapsed`).
+
+- The **outer shell** `div` in **`AppShell.tsx`** **must** include **`APP_SHELL_ROOT_CLASS`** from **`shellLayout.ts`** (often **`src/constants/shellLayout.ts`**) — never a stray string literal `'app-shell'` (so rename/refactor stays grep-safe).
+- Do **not** drop **`app-shell`** from the root while keeping those CSS selectors.
+
+## Fixed rail wrapper width
+
+With **`position: fixed`**, the rail wrapper **does not** consume flex width. Its **width must track** collapsed (**`4rem`**) vs expanded (**`256px`**) vs overlay-closed (**`0`**). Reserving **only** `margin-left` on `main` while the wrapper stays **256px** wide causes **overlap** under the rail.
+
+## Before merge — exercise the running app
+
+Do **not** rely on a repo script for this; verify behavior manually (or with E2E if the project adds it later).
+
+1. **Breakpoints** — Resize across **1024px**: below = overlay rail + full-bleed main when drawer closed; at/above = push mode with reserved main inset. Resize across **1280px** if the app uses XL default-expanded rail logic.
+2. **First paint** — Hard refresh at **≥1024px** with rail **collapsed**: main text must not sit under the rail. Hard refresh at **≥1280px** (or wherever default expanded applies) with rail **expanded**: main must reserve **256px**, not **4rem** only.
+3. **Overlay + router** — Below **1024px**, open the drawer, **navigate** in-app: drawer should **close**. Hamburger and rail **`expanded`** stay in sync; rail items stay clickable (fixed rail **z-index** vs navbar).
+4. **Fixed rail width** — Push + collapsed: fixed wrapper width matches **4rem** strip, not full **256px**, or main will run under an invisible panel.
+5. **Accessibility** — Collapsed overlay drawer (**`side-rail-wrapper`** width 0): **do not** set **`aria-hidden="true"`** on the wrapper while focus is still inside the rail (Chrome: *Blocked aria-hidden … descendant retained focus*, often **`i.modus-wc-icon`**). Use **`inert`** on the wrapper when collapsed; in **`useLayoutEffect`**, if the wrapper **`contains(document.activeElement)`**, move focus to **`#main-content`** (or hamburger) **`before` paint**. See [modus-accessibility.mdc](./modus-accessibility.mdc) → **Collapsed overlay rail shell** and **Decorative icons and focus**.
+
+For implementation detail, read **`.cursor/skills/modus-wc-side-navigation/SKILL.md`** (or workspace copy) — this rule does not replace that skill.

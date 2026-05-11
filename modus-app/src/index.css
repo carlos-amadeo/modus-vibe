@@ -1,0 +1,78 @@
+/* Modus Web Components styles MUST come before Tailwind */
+@import '@trimble-oss/moduswebcomponents/modus-wc-styles.css';
+
+@import 'tailwindcss';
+
+/* FOUC prevention - hide unresolved Modus components */
+modus-wc-navbar:not(:defined),
+modus-wc-side-navigation:not(:defined),
+modus-wc-button:not(:defined),
+modus-wc-card:not(:defined),
+modus-wc-typography:not(:defined),
+modus-wc-icon:not(:defined),
+modus-wc-menu:not(:defined),
+modus-wc-menu-item:not(:defined) {
+  visibility: hidden;
+}
+
+/* Root variables */
+:root {
+  --padding-card: 1rem;
+}
+
+/* Root and theme provider flex chain for scroll ownership */
+#root {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#root > modus-wc-theme-provider {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Icon sizing */
+i.modus-wc-icon {
+  width: fit-content !important;
+  height: fit-content !important;
+}
+
+button i.modus-wc-icon,
+modus-wc-button i.modus-wc-icon {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Side navigation menu items */
+modus-wc-side-navigation modus-wc-menu-item {
+  padding-inline: 0;
+  margin-block: var(--modus-wc-spacing-2xs);
+}
+
+modus-wc-side-navigation modus-wc-menu-item .modus-wc-menu-item button:hover {
+  border-radius: var(--radius-button, 8px) !important;
+  background-color: var(--modus-wc-color-base-200) !important;
+}
+
+modus-wc-side-navigation modus-wc-menu-item .modus-wc-menu-item button.modus-wc-menu-item-selected {
+  background-color: var(--modus-wc-color-blue-pale) !important;
+  border-radius: var(--radius-button, 8px) !important;
+  color: var(--modus-wc-color-primary) !important;
+}
+
+/* Card defaults */
+modus-wc-card {
+  margin-bottom: var(--modus-wc-spacing-xl);
+}
+
+/* Nested cards use base-200 background */
+modus-wc-card modus-wc-card article {
+  background-color: var(--modus-wc-color-base-200) !important;
+}

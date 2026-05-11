@@ -1,0 +1,145 @@
+---
+description: Cross-stack Modus Web Components integration—bootstrap, assets, theme, shell, events, React/shadow DOM pitfalls, and MCP docs (no app-specific CSS catalog).
+globs:
+  - "**/*.{tsx,ts,vue,jsx,js,html}"
+alwaysApply: false
+---
+
+# Modus Web Components — integration guide
+
+Use this alongside [modus-essentials.mdc](./modus-essentials.mdc), [modus-setup.mdc](./modus-setup.mdc), [modus-typography.mdc](./modus-typography.mdc), [modus-layout.mdc](./modus-layout.mdc), [modus-accessibility.mdc](./modus-accessibility.mdc) (WCAG-oriented UX, semantics, ARIA, and testing), and (for **Angular** / **Vue**) [modus-angular.mdc](./modus-angular.mdc) and [modus-vue.mdc](./modus-vue.mdc). It captures **common failure modes** teams hit when wiring Modus (any framework or bundler), not a single repo’s file layout. It does **not** prescribe custom global styles or app-specific `customClass` strings—use Modus tokens and documented component APIs.
+
+## Bootstrap and Stencil assets
+
+- Load **`modus-wc-styles.css`** before your global utilities (see essentials). Import from your **app entry** or first global stylesheet as your stack requires.
+- **Stencil `setAssetPath`:** When using the React wrapper, set the asset base to **`origin + public base path`** so icons and chunks resolve under **subpath deploys** (e.g. Vite: `import.meta.env.BASE_URL`; webpack: `publicPath`; Angular: `deployUrl` / base `href`). Wrong paths cause missing assets in production only.
+- **Order:** Initialize the Modus theme provider (or equivalent for your framework) and `setAssetPath` **before** rendering routes that mount Modus tags; load global CSS in a predictable order (Modus → app).
+- **Next.js (App Router):** Follow [modus-nextjs.mdc](./modus-nextjs.mdc) for the five-layer FOUC/SSR contract—global CSS imported from `app/layout.tsx`, inline theme script in `<head>`, `:not(:defined)` + SSR skeleton, `'use client'` boundaries around Modus wrappers, and optional Stencil **hydrate** post-processing for DSD (Layers 1–4 stay required either way). Do **not** wrap Modus imports in `next/dynamic({ ssr: false })`—the client boundary is sufficient.
+
+## React (and similar reconcilers) with shadow DOM
+
+- React 18+ and especially **React 19** can throw **`removeChild` / `insertBefore`** errors when the reconciler assumes DOM ownership that **web components** move into shadow roots or slots.
+- **Mitigations teams use:** guarded patches on `Node.prototype.removeChild` / `insertBefore` (only after assessing risk), ensuring children are **stable keys**, avoiding conditional unmount churn inside Modus slots where possible, and checking framework release notes for custom-element fixes.
+- If crashes cluster around Modus tags during update/unmount, treat **reconciler + shadow DOM** as the first hypothesis—not a random Modus bug.
+
+### Slot projection vs React reconciliation (slotted hosts)
+
+Stencil **reparents** light-DOM children assigned to **slots** into the component’s **shadow tree**. React’s fiber tree still treats those nodes as children of the **custom-element host** (e.g. **`ModusWcCard`**). If you **mount/unmount** alternate **root** subtrees in the **default (unnamed) slot**—for example `{cond ? <LargePanel /> : <OtherPanel />}` as the only body under **`ModusWcCard`**—React’s commit phase can **lose sync** with where nodes actually live: **`NotFoundError` / `removeChild`**, **stale UI** after a toggle, or **new markup appearing below the host** while the previous slot content still **visibly occupies** the card.
+
+**Required pattern:** for **in-host** UI toggles (empty vs list, IDE panels, “state A vs state B” bodies) inside **`ModusWcCard`** or any **slotted** `ModusWc*` host, **do not** swap two different **top-level** React roots in that slot. Keep **both** branches mounted under **stable** wrapper elements (e.g. two sibling `<div>`s) and toggle **`hidden`** / **`aria-hidden`** (or `display: none` via class) on each wrapper. Same rule as conditional **`slot="..."`** children: **visibility toggles**, not **unmount/remount**, when the parent is a Modus slotted host. Details and examples: [**modus-wc-react-slotted-hosts**](../skills/modus-wc-react-slotted-hosts/SKILL.md); card-specific wording in [modus-layout.mdc](./modus-layout.mdc) (**Card slots** → **React default body**).
+
+## Viewport height, scroll ownership, and React `ModusWcThemeProvider`
+
+When **`html`/`body`** use **`overflow-y: hidden`** so **`<main>`** owns vertical scroll with **`overflow: auto`**, the layout must give **`main`** a **definite maximum height**. Otherwise **`main` never scrolls**: flex items default to **`min-height: auto`**, so they **grow with content** instead of clipping; a parent (e.g. **`.app-body-row`**) with **`overflow: hidden`** then **clips** the bottom.
+
+**Fix 1 — `min-height: 0` on flex descendants:** On **every flex child** between the viewport cap and **`main`** (shell row, **`main`**, etc.), set **`min-height: 0`** so **`overflow: auto` on `main`** can create a scrollbar.
+
+**Fix 2 — theme provider host under `#root`:** With **`ModusWcThemeProvider`**, React renders **`#root` → `modus-wc-theme-provider` → your app**. That **custom element** often behaves like **`display: inline`** and does **not** fill **`#root`** or continue the flex chain unless styled. If **`#root`** only has **`min-height: 100dvh`** (no **`max-height`**), the root box can also **grow with content**, breaking the height contract.
+
+**CSS pattern that closes the chain:**
+
+```css
+#root {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#root > modus-wc-theme-provider {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+```
+
+Keep **`min-height: 0`** on inner shell flex children and **`main`**, with **`main { overflow: auto; }`**. For **Mobile Safari / `100dvh`** and document scroll lock, see the side-navigation skill and [modus-essentials.mdc](./modus-essentials.mdc) troubleshooting.
+
+## Theme contract (all apps)
+
+- **Before first paint:** Run a small inline script on `<html>` (or framework equivalent) to set **`data-theme`** (`modus-modern-light` | `modus-modern-dark`), **`data-mode`** (`light` | `dark` | `system`), and a **`light` / `dark`** class for the **resolved** mode. Seed **`localStorage`**: user preference key (e.g. `theme`) and **`modus-theme-config`** JSON (`{ theme: modusTheme }`) so `ModusWcThemeProvider` (React) or the web-components theme store stays aligned.
+- **Runtime changes:** When the user switches theme, update the same attributes and keys in one place. Optionally add a short-lived class on `<html>` to **suppress CSS transitions** during the swap if hundreds of nodes animate and cause jank.
+- Mismatch here produces **FOUC**, wrong tokens, or theme UI out of sync with the page.
+
+## App shell: navbar and side navigation
+
+- **Greenfield default:** When scaffolding a **new** Modus application, ship **navbar and side navigation together** unless requirements explicitly exclude a rail (see [modus-essentials.mdc](./modus-essentials.mdc) **Scaffolding new apps**). After install, **run the dev server and open IDE browser preview** to the toolchain’s local URL (see [modus-setup.mdc](./modus-setup.mdc) §1)—smoke-test shell chrome, FOUC/script, icons, theme, and **`main`** scroll early. Implement the rail using the **modus-wc-side-navigation** Cursor skill so push/overlay, `targetContent`, and navbar menu state stay correct.
+- **Navbar (`modus-wc-navbar`):** Use the documented **`visibility`** map (`INavbarVisibility` per MCP) to show/hide built-in controls; wire **Modus custom events** (`mainMenuOpenChange`, `appsClick`, `searchClick`, `notificationsClick`, `helpClick`, `userMenuOpenChange`, `aiClick`, etc.) instead of assuming plain DOM `click` covers all behavior. Prefer **full standard chrome** on large breakpoints (see [modus-essentials.mdc](./modus-essentials.mdc) navbar bullets). Slot content: **`ModusWcTypography`** default **`size="md"`**, **`ModusWcButton`** default **`size="md"`** in **`start` / `center` / `end`**. On **narrow widths**, enable **`condensed`** on the navbar host **and** **hide **`slot="center"`** children by default** (responsive **`hidden md:flex`** / breakpoint-gated render) **with the same breakpoint** as condensed / overlay rail—keep **`start`** + **`end`** as the surviving chrome ([modus-layout.mdc](./modus-layout.mdc) → **App shell navbar — `condensed` on narrow viewports**).
+- **Side navigation (`modus-wc-side-navigation`):** For **`mode="push"`**, set **`targetContent`** to a **stable selector** for your main column (often an `id` on `<main>`). The pushed content must exist in the DOM when the component initializes. **Menu items:** each **`modus-wc-menu-item`** should include **`modus-wc-icon`** in **`slot="start-icon"`** (valid Modus icon `name`) so every entry has an icon, including when the rail is collapsed. **Do not** add **horizontal padding on the `modus-wc-menu-item` host** for spacing—Modus already pads the inner row button; host padding **doubles** the left/right inset (see [modus-components-patterns.mdc](./modus-components-patterns.mdc) → **Navigation**).
+- **State coupling:** Hamburger / expand state, **breakpoints**, and **main-column offset** are easy to desync. After changes, test **resize**, **open/close**, and **route transitions**.
+- **Mandatory side-nav shell checklist (anti-skim):** The numbered **“Side navigation shell — mandatory checklist”** in [modus-essentials.mdc](./modus-essentials.mdc) **Scaffolding new apps** is **required** for any app that ships **`modus-wc-side-navigation`** + **`targetContent`**. In short: **one `PUSH_LAYOUT_MIN_PX` (or equivalent) mirrored in JS + CSS**; **never strip push collapsed inset**; **sync expanded `maxWidth` margin before paint + double rAF**; **overlay band = full-bleed `targetContent` whenever `mode === 'overlay'`** (not only drawer closed) so **`expanded`** toggles do not jog **`main`**; **overlay closed = wrapper `width: 0` + `overflow: hidden` + `pointer-events: none` + prefer `inert`** (see [modus-accessibility.mdc](./modus-accessibility.mdc) **Collapsed overlay rail shell** — **no** **`aria-hidden`** on the wrapper while focus stays inside the rail), not `w-0` + `overflow-visible`; **`key` on mode flip** when needed; **manual resize + refresh QA**.
+
+## Events and data handling
+
+Prefer **documented custom events** over native `click` where Modus defines them. Framework name maps:
+
+| Framework | Listener for `buttonClick` | Listener for `inputChange` |
+|-----------|---------------------------|----------------------------|
+| React (`-react` wrapper) | `onButtonClick` | `onInputChange` |
+| Vue (`-vue` wrapper) | `@button-click` | `@input-change` |
+| Angular (`-angular` wrapper) | `(buttonClick)` | `(inputChange)` |
+| Vanilla DOM | `addEventListener('buttonClick', …)` | `addEventListener('inputChange', …)` |
+
+### Event / detail catalog (Modus 2.x — confirm with MCP for your `version`)
+
+| Component(s) | Event | `detail` shape | How to read the value |
+|--------------|-------|----------------|-----------------------|
+| `modus-wc-button` | `buttonClick` | `MouseEvent` (or none — confirm per version) | Trigger your handler; rarely need `detail`. |
+| `modus-wc-text-input` `modus-wc-textarea` `modus-wc-number-input` `modus-wc-select` | `inputChange` | **`InputEvent`** | **`e.detail?.target?.value`** (string). Use `Number(...)` for `modus-wc-number-input`. |
+| `modus-wc-checkbox` `modus-wc-switch` `modus-wc-radio` | `inputChange` | **`InputEvent`** (same as text) | **`e.detail?.target?.checked`** (boolean). **Not** `e.detail.newValue` — that was a 1.0 shape. |
+| `modus-wc-tabs` | `tabChange` | `{ previousTab: number; newTab: number }` | **`e.detail.newTab`** (0-based index). |
+| `modus-wc-pagination` | `pageChange` | `{ newPage: number; prevPage: number }` | **`e.detail.newPage`** (1-based page). |
+| `modus-wc-tooltip` | `dismissEscape` | `void` | Fired on Esc dismiss; no value to read. |
+| `modus-wc-toast` | none | — | Show by mounting; dismiss by unmounting (or via `delay` ms). |
+| `modus-wc-modal` | none on the component | — | Open / close via the inner native `<dialog>` — `getElementById(modalId).showModal() / .close()`. Listen for the native **`close`** event on that dialog for dismiss. |
+| `modus-wc-navbar` | `mainMenuOpenChange`, `appsClick`, `searchClick`, `notificationsClick`, `helpClick`, `userMenuOpenChange`, `aiClick` | per event (often `{ newValue: boolean }` for open/close, none for click) | Verify in MCP for your version. |
+| `modus-wc-side-navigation` | (inner menu items emit `itemSelect` / similar) | per event | Sync `expanded` and `mainMenuOpen` with the navbar — see the [**modus-wc-side-navigation**](../skills/modus-wc-side-navigation/SKILL.md) skill. |
+| `modus-wc-autocomplete` | `inputChange` (text-like) + dedicated select / item events | per event | Set **`items`** imperatively on the element; full pattern in [**modus-wc-autocomplete**](../skills/modus-wc-autocomplete/SKILL.md). |
+
+**Centralize readers** in helpers like `readInputString(e)` / `readInputChecked(e)` from the [**modus-wc-form-inputs**](../skills/modus-wc-form-inputs/SKILL.md) skill — both read from `e.detail.target` (the underlying native `<input>`); only the property differs (`value` vs `checked`).
+
+**Common bugs:**
+
+- `String(e.detail)` for text inputs → `"[object InputEvent]"` (because `detail` is the event, not the string value).
+- `setState(e.detail)` for booleans → stores the `InputEvent` instead of the boolean.
+- `e.detail.newValue` for checkbox/switch/radio → was the 1.0 shape, removed in 2.0.
+- `e.detail` for tabs / pagination → the object, not the index/page.
+- Treating `modus-wc-modal` as if it had `visible` / `onClose` → both removed in 2.0; uses native `<dialog>` semantics.
+
+**`shadowRoot` queries:** last resort when no public API exists; fragile across Modus updates.
+
+## Icons
+
+- **`name` on `modus-wc-icon` is not validated at compile time.** It must match a real glyph in **`@trimble-oss/modus-icons`** for the chosen **`variant`** (outlined vs solid). Wrong strings produce **blank icons** even when **`modus-icons.css`** and fonts load correctly.
+- **Do not guess** names from product language or other libraries. Derive **`name`** from the package: **`dist/modus-{outlined|solid}/svg/<basename>.svg`** → **`name`** = basename with **hyphens → underscores** (see [modus-essentials.mdc](./modus-essentials.mdc) **Icons** and [modus-wc-icons-setup skill](../skills/modus-wc-icons-setup/SKILL.md) §4).
+- When migrating from another icon set, keep an explicit **`legacy → Modus name`** map in code or docs—never transliterate blindly.
+- Verify after changes in the running app (side nav, navbar, tables); spot-check new **`name`** values against the gallery or filesystem listing before shipping.
+
+## Deprecated packages
+
+- Do **not** depend on **`@trimble-oss/modus-web-components`** (hyphenated, Modus 1.0) or other legacy **`modus-web-components`** npm lines. Use **`@trimble-oss/moduswebcomponents`** and the correct **`moduswebcomponents-*`** packages (see [modus-essentials.mdc](./modus-essentials.mdc)).
+
+## Modus docs MCP
+
+- **Server:** `user-modus-docs` (when enabled in Cursor)
+- Read **`@trimble-oss/moduswebcomponents`** version from your **`package.json`** and pass **`version`** into MCP calls so props/events match your install.
+- **`get_modus_component_data`:** `component_name` such as `modus-wc-navbar`, or **`_all_components`** to discover tags.
+- **`get_modus_implementation_data`:** `docs_name` such as `react`, `vue`, `angular`, `form-inputs`, `getting-started`, `accessibility`.
+- Read the current MCP tool schema before invoking tools.
+
+## Reference implementation (optional)
+
+The **modus-blueprint** open-source app (`https://github.com/trimble-oss/modus-blueprint`) is one concrete React/Vite layout—browse **`App.tsx`**, theme wiring, and **`src/styles/globals.css`** on GitHub when you want file-level inspiration. **When copying globals, skip decorative side-nav **`background-image`** rules and bundled pattern SVGs** (marketing rail texture); rely on **`modus-wc-side-navigation`**’s default **`base-page`** fill unless the product spec requires branded texture. For install walkthroughs and patterns shipped with this bundle, use [modus-setup.mdc](./modus-setup.mdc). Treat the blueprint as an example, not a requirement for every product.
+
+## Related agent skills
+
+- **Next.js (App Router + Pages Router) integration contract — layout, providers, FOUC script, `:not(:defined)`, `setAssetPath` + `basePath`, React 19 patch, CSP, optional Stencil hydrate / DSD:** `.cursor/skills/modus-wc-nextjs/SKILL.md`
+- **MCP workflow:** `.cursor/skills/modus-wc-mcp/SKILL.md`
+- **Autocomplete (all frameworks):** `.cursor/skills/modus-wc-autocomplete/SKILL.md`
+- **Charts / dashboards — Modus tokens + Recharts 3 layout:** [.cursor/skills/modus-wc-chart-colors/SKILL.md](../skills/modus-wc-chart-colors/SKILL.md) (palette, tooltips, axes, **`ResponsiveContainer`** **`initialDimension`**, pixel chart height, **`minWidth`/`minHeight`**, and **avoid `hidden`/display:none around mounted charts**—prevents **`width(-1) height(-1)`** console warnings inside **`modus-wc-card`** / flex shells).
+- **Side navigation (push vs overlay, `100dvh`, scroll ownership, React theme-provider chain):** `.cursor/skills/modus-wc-side-navigation/SKILL.md` (and **`.agents/skills/modus-wc-side-navigation/SKILL.md`** if your environment mirrors skills there)
+- **React + slotted hosts / removeChild:** `.cursor/skills/modus-wc-react-slotted-hosts/SKILL.md`

@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Build output
+dist/
+build/
+
+# Editor
+.vscode/settings.json
+*.swp
+*.swo
+
+# Env
+.env.local
+.env*.local

@@ -1,0 +1,290 @@
+---
+description: Modus Setup
+alwaysApply: false
+---
+
+Related rules in this folder: [modus-essentials.mdc](./modus-essentials.mdc) (always applied), [modus-wc-integration.mdc](./modus-wc-integration.mdc) (integration pitfalls), [modus-typography.mdc](./modus-typography.mdc) (**typography** — `modus-wc-typography`, hierarchy, tokens), [modus-layout.mdc](./modus-layout.mdc) (**layout** — multi-card pages, card slots, spacing), [modus-components-patterns.mdc](./modus-components-patterns.mdc) (**per-component scaffolding** — cards, buttons, icons, form elements, navigation, modal), [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc) (**events** — `inputChange`, `buttonClick`, `tabChange`, `pageChange` + cross-cutting CSS overrides), [modus-accessibility.mdc](./modus-accessibility.mdc) (**accessibility** — WCAG 2.1 AA, POUR, design/dev/QA workflow, semantic HTML, ARIA, testing).
+
+This file scopes itself to **app-level setup**: scaffolding a new Modus app, theme bootstrap on `<html>` and `localStorage`, the small set of Modus color variables most apps reach for, and the layout/spacing tokens that drive cards and grids. **Per-component patterns**, **event handlers**, and **per-component CSS overrides** live in the dedicated rules above.
+
+---
+
+## 1. Scaffolding a new app
+
+When standing up a **new** Modus surface (Vite/React, Next, Angular, Vue, etc.), **default to the full app shell** described in [modus-essentials.mdc](./modus-essentials.mdc) (**Scaffolding new apps**): **`modus-wc-navbar`** plus **`modus-wc-side-navigation`**, not navbar-only, unless the user clearly opts out.
+
+1. Follow the **modus-wc-side-navigation** Cursor skill end-to-end (push/overlay, `targetContent`, margin sync, hamburger ↔ `mainMenuOpen`, `min-height: 0` / scroll on `<main>`).
+2. Layer theme bootstrap, icons, and viewport rules from [modus-wc-integration.mdc](./modus-wc-integration.mdc) and §2 Theme below.
+3. Put route views and dashboard content inside the **single** capped **`<main>`** column per [modus-layout.mdc](./modus-layout.mdc).
+4. When adding **`modus-wc-icon`** **`name`** props (navbar, side nav, tables, buttons), **validate each string against `@trimble-oss/modus-icons`** for the correct **`variant`**—see **Icons** in [modus-essentials.mdc](./modus-essentials.mdc). Loading **`modus-icons.css`** does not substitute for invalid **`name`** values (symptom: blank glyph beside label).
+5. Wire per-component scaffolds from [modus-components-patterns.mdc](./modus-components-patterns.mdc) (cards, buttons, form elements, navigation, modal) and event handlers from [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc).
+6. **Dev server and preview (agent workflow):** After dependencies install successfully, **start the project’s dev server** in the background (e.g. `npm run dev`, `pnpm dev`, `ng serve`) and **open the running app in the IDE browser preview** (or Cursor Simple Browser / `cursor-ide-browser` MCP navigate to the local URL printed by the dev tools—note **host and port**, including fallback ports when the default is in use). This verifies theme bootstrap, icons, shell layout, and scroll behavior without asking the user to wire it manually. Skip only if the user forbids running servers, the environment cannot bind a port, or the scaffold is intentionally incomplete.
+7. **Side navigation surface:** Do **not** add **`background-image`** / SVG **pattern assets** on the rail (e.g. blueprint-style **`Sidenavpattern.svg`**) in greenfield apps. **`modus-wc-side-navigation`** already uses Modus **`base-page`** tokens; decorative textures are opt-in by product only (see [modus-essentials.mdc](./modus-essentials.mdc) **UX defaults** and the [**modus-wc-side-navigation** skill](../skills/modus-wc-side-navigation/SKILL.md) **Reference implementation**).
+
+---
+
+## 2. Theme Configuration
+
+### 2.1 Theme modes and names (library contract)
+
+**`IThemeConfig`** (what `modus-wc-theme-switcher` emits and the theme store uses) has two fields:
+
+- **`mode`**: `light` | `dark` only — resolved appearance. The switcher toggles between these; it does not persist a third runtime `mode` value of `system`.
+- **`theme`**: `modus-modern` | `modus-classic` | `connect` — the **family** name, not the full CSS `data-theme` token.
+
+Apps may still offer a **user preference** of `system` (follow OS) in their own key (e.g. `localStorage.theme`), resolve it to `light` / `dark` before paint or when syncing storage, and then persist **`modus-theme-config`** using the resolved `mode` so Modus and CSS stay aligned.
+
+### 2.2 Theme attributes on `<html>`
+
+What users see is driven by attributes on the document root (and the `light` / `dark` class):
+
+- **`data-theme`**: full token the stylesheets match, e.g. `modus-modern-light`, `modus-modern-dark` (pattern `${theme}-${mode}` when using the stock theme provider).
+- **`data-mode`**: **`light` | `dark`** when using **`modus-wc-theme-provider`** — it mirrors the resolved mode applied to tokens. If you run a custom inline script, keep this consistent with the same resolved mode you set on `data-theme`, or the page and chrome can disagree.
+- **`class`**: include **`light`** or **`dark`** for the resolved mode (the provider maintains this).
+
+### 2.3 `localStorage` keys
+
+- **`modus-theme-config`** — JSON object Modus reads when initializing the theme store. Shape must match what the library expects, **not** a single combined string in `theme`:
+
+  ```json
+  { "theme": "modus-modern", "mode": "light" }
+  ```
+
+  - **`theme`**: family name (`modus-modern`, `modus-classic`, `connect`), **not** `modus-modern-light` / `modus-modern-dark`.
+  - **`mode`**: `light` | `dark` (resolved). The store’s `getStoredMode()` reads **`mode`** from this object; omitting `mode` leaves the store defaulting out of sync with your inline script and breaks the theme switcher’s initial state.
+
+- **`theme`** (optional app key) — end-user preference such as `light` | `dark` | `system`. Not read by `@trimble-oss/moduswebcomponents` theme store by default; use it in your bootstrap only if you implement “system” yourself.
+
+### 2.4 `modus-wc-theme-provider` vs `modus-wc-theme-switcher` (common failure)
+
+- **`modus-wc-theme-switcher`** updates the internal **`themeStore`** and emits **`themeChange`**; it does **not** set `data-theme` on `<html>` by itself.
+- **`modus-wc-theme-provider`** (custom element) or **`ModusWcThemeProvider`** (React) is what **subscribes to the store** and writes **`data-theme`**, **`data-mode`**, **`class`**, and **`modus-theme-config`** on change. **`initializeThemeStore()`** runs when the provider loads, not when the switcher mounts alone.
+
+**Symptom:** Toggle moves or fires events but the page colors do not change, or the switch shows light while the document is dark after a reload.
+
+**Fix:** Wrap the app shell (or root) with **`modus-wc-theme-provider`** / **`ModusWcThemeProvider`** wherever you render **`modus-wc-theme-switcher`**. Vanilla and Angular use the **custom element**; React uses the provider component from the React package.
+
+### 2.5 Inline bootstrap script (`index.html`)
+
+To avoid FOUC, a small script before paint should set **`data-theme`**, **`data-mode`**, and **`class`** on `<html>` to the **same resolved** values you will persist.
+
+Align **`modus-theme-config`** with §2.3 **before** the bundle runs so the provider’s first `initializeThemeStore` read matches the DOM, e.g.:
+
+```js
+// Resolve user pref (e.g. light / dark / system) to a boolean, then:
+var mode = resolvedIsDark ? 'dark' : 'light';
+document.documentElement.setAttribute(
+  'data-theme',
+  mode === 'dark' ? 'modus-modern-dark' : 'modus-modern-light',
+);
+document.documentElement.setAttribute('data-mode', mode);
+document.documentElement.classList.remove('light', 'dark');
+document.documentElement.classList.add(mode);
+localStorage.setItem('modus-theme-config', JSON.stringify({ theme: 'modus-modern', mode }));
+```
+
+Do **not** seed `modus-theme-config` with only `{ "theme": "modus-modern-light" }` — that is the wrong shape (`theme` must be the family name, and **`mode` is required** for store hydration).
+
+### 2.6 Listening to `themeChange`
+
+You may still handle **`themeChange`** (or React **`onThemeChange`**) to mirror into app-specific keys (e.g. `localStorage.theme`). The provider already persists **`modus-theme-config`** when the store updates; avoid writing a conflicting shape from your handler.
+
+---
+
+## 3. Modus Color Variables
+
+### 3.1 Primary Color Variables
+
+Always use Modus dynamic color variables instead of static hex values:
+
+| Variable | Usage |
+|----------|-------|
+| `--modus-wc-color-base-page` | Page/background colors |
+| `--modus-wc-color-base-100` | Card background colors |
+| `--modus-wc-color-base-200` | Borders, dividers, child card backgrounds |
+| `--modus-wc-color-base-content` | Primary text content |
+| `--modus-wc-color-base-content-low-contrast` | Secondary/muted text |
+| `--modus-wc-color-primary` | Primary actions, links |
+| `--modus-wc-color-primary-pale` | Hover backgrounds (10% opacity) |
+| `--modus-wc-color-blue-pale` | Selected menu item backgrounds |
+| `--modus-wc-color-error` | Error states |
+| `--modus-wc-color-warning` | Warning states |
+
+### 3.2 Usage Examples
+
+```css
+/* Page background */
+background-color: var(--modus-wc-color-base-page);
+
+/* Card background */
+background-color: var(--modus-wc-color-base-100);
+
+/* Border color */
+border-color: var(--modus-wc-color-base-200);
+
+/* Primary text */
+color: var(--modus-wc-color-base-content);
+
+/* Muted text */
+color: var(--modus-wc-color-base-content-low-contrast);
+```
+
+### 3.3 Color Variable Overrides
+
+Override Modus base colors for custom themes:
+
+```css
+:root[data-theme^="modus-modern"] {
+  --modus-wc-color-base-100: light-dark(#f6f6f9, #101113);
+  --modus-wc-color-base-200: light-dark(var(--modus-wc-color-gray-light), var(--modus-wc-color-trimble-gray));
+}
+```
+
+---
+
+## 4. Layout and Spacing Rules
+
+**Card composition, title/footer patterns, and multi-card page spacing** are specified in [modus-layout.mdc](./modus-layout.mdc); this section keeps illustrative grids and tables for setup walkthroughs.
+
+### 4.1 Grid Layouts
+
+Use responsive grid layouts for card containers:
+
+```tsx
+// Standard 3-column responsive grid
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+  {/* Cards */}
+</div>
+```
+
+### 4.2 Spacing Conventions
+
+| Context | Spacing | Tailwind Class |
+|---------|---------|----------------|
+| Parent card gaps | 12px | `gap-3` |
+| Child card gaps | 8px | `gap-2` |
+| Stacked parent-level cards (vertical rhythm) | 12px | `gap-3` on parent flex or grid (do not target nested `modus-wc-card` with extra margin) |
+| Section padding | 16px | `p-4` |
+| Form field gaps | 16px | `gap-4` |
+
+### 4.3 Sidebar Layout
+
+```css
+/* Sidebar width with transition */
+#main-content {
+  margin-left: 256px;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+@media (max-width: 767px) {
+  #main-content {
+    margin-left: 0;
+  }
+}
+```
+
+The full responsive push/overlay recipe (matchMedia breakpoint constant, double-rAF margin sync, overlay collapse) is in the [**modus-wc-side-navigation** skill](../skills/modus-wc-side-navigation/SKILL.md); the snippet above is illustrative.
+
+---
+
+## 5. Typography Rules
+
+For **`modus-wc-typography`** hierarchy, scale, tokens, and semantic heading practices in Modus Web Components apps, use [modus-typography.mdc](./modus-typography.mdc) as the primary reference. The tables below are illustrative; confirm **`size`** / **`weight`** / **`hierarchy`** with Modus Docs MCP for your package version.
+
+### 5.1 Font Configuration
+
+Use Open Sans with weights 400, 600, 700:
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+html, body {
+  font-family: 'Open Sans', sans-serif;
+}
+```
+
+### 5.2 Heading Hierarchy
+
+**Note:** Not a substitute for [modus-typography.mdc](./modus-typography.mdc) or package docs—use **`ModusWcTypography`** props instead of inferring only from this table.
+
+| Element | Size | Weight |
+|---------|------|--------|
+| h1 | 30px (--text-3xl) | Bold (700) |
+| h2 | 24px (--text-2xl) | Bold (700) |
+| h3 | 20px (--text-xl) | Medium (600) |
+| h4 | 18px (--text-lg) | Medium (600) |
+
+### 5.3 Typography Components
+
+```tsx
+// Page title
+<ModusWcTypography hierarchy="h1" size="3xl" weight="bold" label="Page Title" />
+
+// Section heading
+<ModusWcTypography hierarchy="h2" size="xl" weight="semibold" label="Section" />
+
+// Card title
+<ModusWcTypography hierarchy="h4" size="md" weight="semibold" label="Card Title" />
+
+// Body text
+<ModusWcTypography hierarchy="p" size="sm" label="Body text" />
+
+// Muted text
+<ModusWcTypography 
+  hierarchy="p" 
+  size="sm" 
+  customClass="text-[var(--modus-wc-color-base-content-low-contrast)]" 
+  label="Muted text" 
+/>
+```
+
+### 5.4 Label Styling
+
+```css
+label {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+```
+
+---
+
+## Where to find what
+
+The pieces that used to live in this file moved to dedicated rules (and skills) so each one is short enough to scan. Use this map when an old §-reference points here:
+
+| Topic | Now lives in |
+|-------|--------------|
+| Cards, buttons, icons, form elements, navigation, modal scaffolding | [modus-components-patterns.mdc](./modus-components-patterns.mdc) |
+| Event handlers (`inputChange`, `buttonClick`, `tabChange`, `pageChange`, autocomplete) and per-component CSS overrides | [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc) |
+| Cross-component event/detail catalog (every component's event name + `detail` shape) | [modus-wc-integration.mdc](./modus-wc-integration.mdc) → **Events and data handling** |
+| Decorative icons, form labels, reduced motion, focus indicators | [modus-accessibility.mdc](./modus-accessibility.mdc) → **Quick reference** |
+| Page layout, card grid, detail page header (sticky), `customClass` forwarding map | [modus-layout.mdc](./modus-layout.mdc) |
+| Chart colors, Recharts 3 **`ResponsiveContainer`** sizing (`initialDimension`, flex/card bodies, `hidden`) | [.cursor/skills/modus-wc-chart-colors/SKILL.md](../skills/modus-wc-chart-colors/SKILL.md) |
+| Per-component deep contracts (slots, edge cases, framework wiring) | matching skill in `.cursor/skills/modus-wc-*` |
+
+---
+
+## Summary Checklist
+
+When setting up a new Modus project:
+
+- [ ] **Recharts 3 dashboards:** follow [.cursor/skills/modus-wc-chart-colors/SKILL.md](../skills/modus-wc-chart-colors/SKILL.md) **§4b** (`initialDimension`, pixel wrapper height, **`minWidth`/`minHeight`**; do not keep charts mounted under **`hidden`** for inactive main views)
+- [ ] **No decorative side-nav rail patterns** (`background-image`, mesh SVG assets) unless the product requests them—the component default token fill is correct for scaffolding
+- [ ] After a successful scaffold and install: **run the dev server** and **open browser preview** to the reported local URL so shell, FOUC/script, icons, and theme can be smoked-tested early (unless the user or environment disallows servers)
+- [ ] Install Modus packages aligned to your stack and framework major (same x.y.z for base + framework; verify with `npm view`); never `@trimble-oss/modus-web-components` (deprecated Modus 1.0)
+- [ ] Wire theme root: React — wrap with **`ModusWcThemeProvider`**; Angular / Vue / vanilla — wrap the shell with **`modus-wc-theme-provider`** wherever **`modus-wc-theme-switcher`** is used (switcher alone does not update `<html>`)
+- [ ] Import Modus CSS BEFORE Tailwind in index.css
+- [ ] Set up icon fonts with CDN preloading
+- [ ] Add an **`index.html`** inline theme script that sets **`data-theme`**, **`data-mode`**, **`class`**, and seeds **`modus-theme-config`** as **`{ theme: "<family>", mode: "light"|"dark" }`** (see §2.3–2.5), not `{ theme: "modus-modern-light" }` alone
+- [ ] Always use Modus dynamic color variables instead of static hex values
+- [ ] Apply consistent spacing (`gap-3` for parent, `gap-2` for child) per [modus-layout.mdc](./modus-layout.mdc)
+- [ ] Form controls (**`modus-wc-date`**, **`modus-wc-time-input`**, text/number/textarea/select, …): keep **bordered default on** (**omit** **`bordered`** or **`bordered={true}`**); **do not** use **`bordered={false}`** for density on dashboards or toolbars—**inline table / grid cell editing** is the documented exception ([modus-form-bordered-default.mdc](./modus-form-bordered-default.mdc))
+- [ ] Use `bordered={false}` and `padding="compact"` for **cards** by default ([modus-components-patterns.mdc](./modus-components-patterns.mdc) → **Cards**) — **not** for form fields
+- [ ] Default to tertiary buttons at `size="sm"`; limit primary buttons to one per section ([modus-components-patterns.mdc](./modus-components-patterns.mdc) → **Buttons**)
+- [ ] Mark decorative icons with `decorative` prop ([modus-accessibility.mdc](./modus-accessibility.mdc) → **Decorative icons**)
+- [ ] Use correct event handling patterns: `onButtonClick`, `e.detail?.target?.value` for text/select, `e.detail?.target?.checked` for boolean controls ([modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc))
+- [ ] Scope any form-input background overrides to a wrapper class so they do not bleed across the shell ([modus-components-patterns.mdc](./modus-components-patterns.mdc) → **Form Elements**)
+- [ ] Include side-navigation active/hover state styling **without** horizontal padding on **`modus-wc-menu-item`** hosts ([modus-components-patterns.mdc](./modus-components-patterns.mdc) → **Navigation**)

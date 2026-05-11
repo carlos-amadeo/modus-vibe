@@ -1,0 +1,51 @@
+---
+description: Modus Web Components typography — modus-wc-typography hierarchy, size, weight, semantic headings, Open Sans, tokens, and alignment with blueprint foundations.
+globs:
+  - "**/*.{tsx,ts,vue,jsx,js,html}"
+alwaysApply: false
+---
+
+# Modus Web Components — typography
+
+Use this alongside [modus-essentials.mdc](./modus-essentials.mdc) (Open Sans, color tokens), [modus-accessibility.mdc](./modus-accessibility.mdc) (contrast, semantics, readable text), [modus-setup.mdc](./modus-setup.mdc) (layout and shell), and [modus-layout.mdc](./modus-layout.mdc) (card title row structure and **`xs`** controls beside titles). **This file** is the reference for **`modus-wc-typography`** / **`ModusWcTypography`** usage in apps built with Modus Web Components.
+
+## Prefer `modus-wc-typography` for UI text
+
+- Use **`modus-wc-typography`** (or framework **`ModusWcTypography`**) for user-visible headings and body copy so size, weight, and rhythm stay aligned with the design system.
+- Set **`hierarchy`** to the correct **semantic element** (`h1`–`h6`, `p`, etc.) for the document outline and assistive tech—not only for visual style.
+- Use **`size`** and **`weight`** for visual scale; allowed values and defaults depend on your installed **`@trimble-oss/moduswebcomponents`** version—confirm with **Modus Docs MCP** or package docs before assuming props.
+- Put visible text in **`label`** (or the documented content API for your framework); do not fight the component with duplicate unstyled text nodes unless the pattern is documented.
+
+## Hierarchy and scale
+
+- Use **one logical main `h1`** per primary view (page or major route) where it fits the design; avoid multiple competing top-level titles.
+- **Do not skip heading levels** (e.g. `h1` then `h4` with no `h2`/`h3`) unless the layout truly has no intermediate sections—skipped levels hurt outline and navigation for screen reader users.
+- Establish a **clear downscale**: page title → section → subsection → card or list title → body → helper / caption text.
+- Apply **font weights purposefully** (e.g. semibold for titles, regular for body)—avoid bolding entire paragraphs.
+
+## Blueprint-friendly patterns
+
+These match common usage on the **modus-blueprint** Typography foundations UI and cards:
+
+- **Card title (slot or body):** `hierarchy="h4"`, `size="md"`, `weight="semibold"`, `label="…"`. Pair with **`xs`** buttons/badges/chips in the same title row per [modus-layout.mdc](./modus-layout.mdc).
+- **Navbar (`modus-wc-navbar`) slot content** (`start`, `center`, `end`): default **`ModusWcTypography`** to **`size="md"`** for inline titles, breadcrumbs, and labels—navbar chrome is not a card title row; keep **`xs`** for **card** title bars only. On **narrow viewports**, **`slot="center"`** typography clusters should usually **stay hidden with the slot wrapper** per [modus-layout.mdc](./modus-layout.mdc) shell navbar guidance—put the primary **page title** in **`main`** as a semantic **`h1`** instead of duplicating it only in **`center`**.
+- **Card subtitle / secondary line:** `hierarchy="p"`, `size="sm"`, optional `customClass` for spacing.
+- **Body copy (paragraphs):** `hierarchy="p"`, default **`size="md"`** for primary narrative and form-adjacent copy. Use **`size="sm"`** only when density or layout calls for it (e.g. helper text, compact list rows, captions)—do not treat **`sm`** as the default for normal paragraphs.
+- **Muted / secondary meaning:** `customClass` with **`var(--modus-wc-color-base-content-low-contrast)`** (or utility classes that resolve to Modus tokens), not ad-hoc gray hex.
+- **Page / section titles (`h1`–`h6`):** Always set **`hierarchy`** to the correct level and **`weight`** as needed (e.g. **`semibold`**). In many builds the typography component’s **default `size` is `md` for every heading level**, so **visual** scale can look flat next to body copy (`p`, **`md`**). When that happens, set **`size`** to a **stepped Modus scale** (confirm steps with **MCP** for your version)—for example page hero **`h1`** in the **`2xl`–`4xl`** band, primary section **`h2`** in **`xl`–`2xl`**, subsection **`h3`** in **`lg`–`xl`**—while keeping the **semantic** level correct. Do not pick a smaller **`hierarchy`** just to get a smaller font.
+
+## Do / don’t
+
+- **Do** load **Open Sans** (or equivalent) at app level as in [modus-essentials.mdc](./modus-essentials.mdc).
+- **Do** use **Modus CSS variables** for text color so light/dark and theme changes stay correct.
+- **Don’t** replace primary UI typography with raw **`<h1>`–`<h6>` / `<p>`** plus ad-hoc **Tailwind `text-*` / arbitrary font-size** when **`modus-wc-typography`** should own the scale.
+- **Don’t** use **static hex** for body or heading color in chrome areas—use tokens.
+- **Don’t** treat legacy **global heading CSS** (e.g. plain `.css` files from older Modus bundles) as the single source of truth for **web components**—rendered output is defined by the component and theme.
+
+## Specs vs. global CSS
+
+Design typography specs (line height, letter spacing, display sizes) may **differ** from older global stylesheets. For **Modus Web Components** apps, treat **`modus-wc-typography`** plus **theme tokens** and **installed package behavior** as authoritative; resolve discrepancies with **MCP** or component docs, not unscoped overrides unless product requires them.
+
+## Reference for humans
+
+In **modus-blueprint**, the **Typography** foundation documents scales, principles, and examples (tabs such as **specs**, **sizes**, **weights**, **heights**, **principles**) at routes like **`/foundations/typography/specs`**. Use that for narrative guidance; use **MCP** for exact **`modus-wc-typography`** props and events on your version.

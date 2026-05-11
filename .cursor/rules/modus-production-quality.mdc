@@ -1,0 +1,195 @@
+---
+description: Production code quality gate for Modus apps — accessibility pass, clean DevTools console (errors + a11y warnings), no inline styles, semantic HTML, complete <head> elements, and a pre-merge / post-vibe-coding checklist that reuses the per-component skills.
+globs:
+  - "**/*.{tsx,ts,jsx,js,vue,html,css}"
+alwaysApply: false
+---
+
+# Modus — production code quality
+
+Treat this as the **post-implementation gate** for any Modus UI before merge or deploy: especially after **vibe coding** (rapid scaffold + iterate) where compile-time correctness alone is **not** enough. Each section is a **gate**, not a suggestion.
+
+Use alongside [modus-essentials.mdc](./modus-essentials.mdc) → **Ship checklist (Modus UI)** (the framework-correctness gate), [modus-accessibility.mdc](./modus-accessibility.mdc) (full a11y workflow), [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc), [modus-typography.mdc](./modus-typography.mdc), and [modus-layout.mdc](./modus-layout.mdc). Per-component runtime contracts live in the matching skills (`modus-wc-form-inputs`, `modus-wc-side-navigation`, `modus-wc-table`, `modus-wc-modal`, `modus-wc-react-slotted-hosts`, [**modus-wc-icons-setup**](../skills/modus-wc-icons-setup/SKILL.md), `modus-wc-nextjs`, etc.). **§6** makes the **icon font + `name` validation** pass **explicit** before sign-off.
+
+## When to apply
+
+- After the agent (or the human + agent) finishes a screen, scaffold, or feature.
+- Before opening a PR; before promoting a build.
+- Whenever the user asks **"is this production ready?"**, **"review this for shipping"**, **"clean up before handoff"**, or similar.
+- During **code review** of vibe-coded UI.
+- After adding or changing **`modus-wc-icon`** / nav icons — run **§6** even for “small” diffs; bad **`name`** values do not fail compile.
+
+The bar: **clean DevTools console**, **clean accessibility tree**, **semantic HTML**, **complete `<head>`**, **no inline-style escape hatches**, **green build**, and a manual smoke pass in the running app.
+
+## 1. Accessibility — full pass (not just compile time)
+
+Match [modus-accessibility.mdc](./modus-accessibility.mdc) end-to-end on the routes you changed:
+
+- **Keyboard only** — every interactive flow without a pointer; logical tab order; visible focus on every focusable element; no focus traps outside intentional **`modus-wc-modal`** dialogs (with proper return focus on close).
+- **Screen-reader spot-check** — VoiceOver (macOS), NVDA (Win), or TalkBack (Android) on primary flows. Landmarks (`main`, `nav`, `header`, `footer`) announce; form labels and errors read correctly; live-region status updates (`aria-live`) announce when relevant.
+- **Automated scans** — **axe DevTools** / **Lighthouse Accessibility** / **`eslint-plugin-jsx-a11y`** report **zero issues** on the changed routes. Chrome DevTools → **Issues** panel shows **zero a11y issues**.
+- **Modus components** — leave keyboard, focus, and ARIA defaults intact. Do **not** remove `:focus-visible` rings without an equally visible replacement; do **not** override roles on Modus hosts.
+- **Icon-only buttons** — `shape="square"` and an accessible name (`aria-label` on the host, or `aria-label` on the icon with `decorative={false}`). See [modus-essentials.mdc](./modus-essentials.mdc) → **UX defaults** → **Icon-only buttons**.
+- **Color is not the only signal** — status, errors, selection, and required state all carry text, icon, or shape in addition to color.
+
+## 2. Console hygiene — zero errors, zero warnings
+
+Open DevTools **Console** on every changed route and verify:
+
+- **No errors** — no React errors (`removeChild` / `NotFoundError` / hydration mismatch), no custom-element errors, no network 4xx/5xx, no CORS / CSP violations, no module load failures.
+- **No warnings** — including React (`Each child in a list should have a unique "key"`, controlled-vs-uncontrolled inputs, hydration text mismatches), unknown-attribute warnings on **`modus-wc-*`** hosts, asset-path 404s for icons / chunks, and library deprecation warnings you introduced.
+- **No `console.log` / `console.debug` / `debugger`** statements left from local debugging. Use proper logging in production paths or remove.
+- **No unhandled promise rejections** in async data flows or effects.
+- **No accessibility warnings** in the Issues panel — Chrome surfaces ARIA misuse, contrast violations, and label/name issues there. Treat each as a defect.
+
+If a third-party library (analytics SDK, embed, map renderer) logs noisily, **wrap or configure it** — do not let it pollute production output. Document any genuine exception inline so a reviewer can verify intent.
+
+## 3. No inline styles (unless unavoidable)
+
+Cross-reference [modus-essentials.mdc](./modus-essentials.mdc) → **Component styling (hosts and overrides)**. The diff should contain **no** `style="…"` attributes in HTML/JSX/Vue templates, and **no** React `style={{ … }}` unless the value is **computed at runtime** and **cannot** be modeled via class + CSS custom property.
+
+**Allowed exceptions** (each occurrence should be obvious from context, or carry a short comment explaining why):
+
+- A value that **must** come from runtime state and has no design-token equivalent (e.g. a measured `transform: translateX(${px}px)` on a custom drag, a CSS variable set inline to feed Recharts colors).
+- A hard constraint imposed by a third-party embed where wrapping in CSS is not viable.
+- Animation values driven by JS (and you considered CSS keyframes / `prefers-reduced-motion` first).
+
+Order of preference for everything else:
+
+1. Documented Modus props (`variant`, `size`, `color`, `bordered`, `padding`, …).
+2. Tailwind utilities / `customClass` (or framework equivalent) on the host.
+3. Scoped CSS against tokens (`var(--modus-wc-color-base-*)`, `var(--modus-wc-spacing-*)`).
+4. `::part` / shadow piercing **only** when the public API cannot reach the surface (confirm the part name with **Modus Docs MCP** for your `version`).
+
+**Audit:** grep the diff for `style="` and `style={{` — every occurrence should be defensible.
+
+## 4. Semantic HTML
+
+The DOM that ships should read sensibly with CSS off and convey structure to assistive tech:
+
+- **One `<h1>` per page**; heading order increases monotonically (`h1` → `h2` → `h3`) — never skip levels and never demote a heading to a styled `<div>` to "fix" visual scale. Use **`modus-wc-typography`** with the correct `hierarchy` (see [modus-typography.mdc](./modus-typography.mdc)).
+- **Landmarks** — exactly **one `<main>`** per page; **`<nav>`** for primary navigation; **`<header>`**, **`<footer>`**, **`<aside>`**, **`<section aria-labelledby="…">`** where they apply. Do not wrap a whole page in generic `<div>` shells.
+- **Real interactive elements** — `<button type="button">` for buttons (or **`modus-wc-button`**), `<a href="…">` for links (or **`modus-wc-link` / `<Link>`**); never a `<div onClick>`. **`modus-wc-button`** produces correct semantics in shadow; pair with the documented `buttonClick` event ([modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc)). **No nested `<button>`** — e.g. do not put **`ModusWcButton`** inside **`modus-wc-dropdown-menu`** **`slot="button"`**; the dropdown host already renders the trigger ([**modus-wc-dropdown-menu** skill](../skills/modus-wc-dropdown-menu/SKILL.md)).
+- **Lists** — `<ul>` / `<ol>` for collections; do not fake them with rows of `<div>` and bullet glyphs. **Checklists** pairing **`modus-wc-icon`** + **`modus-wc-typography`** on each **`li`** need **scoped unlayered** list row CSS (built-in **`modus-wc-styles.css`** **`ul`/`li`** rules otherwise override **`list-none`**/**`flex`** utilities)—see [modus-layout.mdc](./modus-layout.mdc) → **Dense metrics / lists** and [modus-events-and-overrides.mdc](./modus-events-and-overrides.mdc) → **Lists — Daisy base rules**.
+- **Tables** — use **`modus-wc-table`** (preferred — see the [`modus-wc-table`](../skills/modus-wc-table/SKILL.md) skill) or `<table>` + `<thead>` / `<tbody>` + `<th scope="col" | "row">` for tabular data. Do **not** style a `<div>` grid to look like a table when the data is tabular.
+- **Forms** — every input has either the Modus component's built-in **`label`** prop or an external `<label htmlFor={id}>` paired with `id` / `inputId`. Group related controls with `<fieldset>` + `<legend>`. Mark required fields with `required` / `aria-required`. Use **`inputChange`** + the readers from the [`modus-wc-form-inputs`](../skills/modus-wc-form-inputs/SKILL.md) skill — never `String(e.detail)`.
+- **Images** — meaningful `alt`; decorative images use `alt=""` (or `decorative` on **`modus-wc-icon`**). Validate every `modus-wc-icon name` against `@trimble-oss/modus-icons` for the chosen `variant` (see [modus-essentials.mdc](./modus-essentials.mdc) → **Icons**) — invalid names render as **blank space**.
+- **`<button type>`** — set explicitly inside forms; default `submit` is the most common production bug.
+- **`tabindex`** — never positive (`1`, `2`, …); `0` for custom focusables; `-1` only for programmatic focus targets.
+
+## 5. HTML `<head>` elements
+
+Every public route / app entry must include the following (in `index.html`, Next.js App Router `metadata` / `generateMetadata`, Pages Router `next/head`, Angular `Title` / `Meta` services, Vue `useHead`, etc.). For Next.js specifics, see [modus-nextjs.mdc](./modus-nextjs.mdc).
+
+**Required:**
+
+- **`<html lang="…">`** — page language (e.g. `lang="en"`); update for locale variants.
+- **`<meta charset="UTF-8">`** — first child of `<head>`.
+- **`<meta name="viewport" content="width=device-width, initial-scale=1">`** — required for responsive layout and mobile zoom.
+- **`<title>…</title>`** — descriptive and **page-specific**, not just the app name on every route.
+- **`<meta name="description" content="…">`** — concise summary; powers SEO and social previews.
+- **Modus theme bootstrap** — **before first paint**, set `data-theme` (`modus-modern-light` / `modus-modern-dark`), `data-mode` (`light` / `dark` / `system`), and the resolved `light` / `dark` class on `<html>` (see [modus-essentials.mdc](./modus-essentials.mdc) → **Theme** and [modus-nextjs.mdc](./modus-nextjs.mdc) Layer 1). Otherwise users see a dark→light flash.
+- **Favicon** — `<link rel="icon" href="…">`.
+
+**Required for public / shareable surfaces:**
+
+- **Open Graph** — `og:title`, `og:description`, `og:image` (with absolute URL), `og:url`, `og:type`.
+- **Twitter card** — `twitter:card="summary_large_image"`, `twitter:title`, `twitter:description`, `twitter:image`.
+- **`<link rel="canonical" href="…">`** when the same content is reachable via multiple URLs.
+- **`<meta name="theme-color">`** matching Modus light / dark surface so mobile browser chrome blends — pair with `media="(prefers-color-scheme: light|dark)"` if you ship per-mode values.
+
+**Recommended:**
+
+- **Modus styles, icons, fonts** — `modus-wc-styles.css` imported from the entry **before** Tailwind / app CSS; `modus-icons.css` linked in `<head>`; **Open Sans** (or chosen body font) preloaded with `<link rel="preload" as="font" crossorigin>`. See [modus-essentials.mdc](./modus-essentials.mdc) → **Styles** / **Icons** and the [`modus-wc-icons-setup`](../skills/modus-wc-icons-setup/SKILL.md) skill.
+- **PWA manifest** — `<link rel="manifest" href="…">` if the app installs.
+- **Robots / sitemap** — `<meta name="robots">` only if you intentionally restrict indexing; otherwise rely on defaults plus a sitemap.
+
+**Anti-patterns:**
+
+- A single static `<title>` shared by every route.
+- Repeating the same `og:image` for every page even when content differs.
+- Theme set in a `useEffect` (runs **after** first paint → reintroduces FOUC).
+
+## 6. Modus icons — production fix pass
+
+**Blank, missing, or “wrong” icons** in shipped UI are usually (a) **icon font never applied** to the document, or (b) **invalid `name`** / **`variant` mismatch** — TypeScript will not catch this. Before merge, **run this pass** on changed routes and shell chrome:
+
+1. **Read and apply** [**modus-wc-icons-setup**](../skills/modus-wc-icons-setup/SKILL.md) — verify **`modus-icons.css`** (or equivalent **`@font-face`**) is linked **early** in `<head>`, **jsDelivr** (or self-hosted) URLs match the **pinned major** of **`@trimble-oss/modus-icons`**, **`BASE_URL` / assetPrefix** is correct for subpath deploys, and **CSP `font-src`** allows the font origin if you use a strict policy.
+2. **Resolve invalid names** — audit every **`modus-wc-icon`** / **`ModusWcIcon`** **`name`** (and any sibling API that accepts Modus icon strings) against **`@trimble-oss/modus-icons`** at **`dist/modus-outlined/svg/`** or **`dist/modus-solid/svg/`** for the **`variant`** in use; map **kebab-case** basenames → **`name`** with **underscores** per the skill. Replace guessed names from Font Awesome / Lucide / emoji — they often render as **empty space** while other icons work. Use **Modus Docs MCP** (`modus-wc-icon`, your package **`version`**) when needed.
+3. **Visual smoke on a production build** — open changed surfaces in **light + dark**; confirm **no** persistent empty icon slots next to labels or in nav items.
+
+This gate extends [modus-essentials.mdc](./modus-essentials.mdc) → **Icons** and the **Ship checklist** **`modus-icons.css` / `name`** items — treat **font + validated names** as **required** for “production ready”, not optional polish.
+
+## 7. Modus shell sanity (runtime)
+
+After build, exercise the live app and verify:
+
+- Theme correctly applied on `<html>` on first paint — **no dark→light flash**.
+- Modus CSS imported **before** Tailwind / app CSS (verify in DevTools → Network order if unsure).
+- **Icons** — complete **§6 Modus icons — production fix pass** (fonts wired + every **`name`** validated); runtime smoke still shows **no** blank / tofu glyph slots in shell and changed routes.
+- No **`removeChild` / `NotFoundError`** after toggles, route changes, or modal open/close — see [`modus-wc-react-slotted-hosts`](../skills/modus-wc-react-slotted-hosts/SKILL.md).
+- **Side navigation** push/overlay layout verified across breakpoints, including hamburger behavior on narrow viewports — see [`modus-wc-side-navigation`](../skills/modus-wc-side-navigation/SKILL.md) and [modus-essentials.mdc](./modus-essentials.mdc) → **Side navigation shell — mandatory checklist**.
+- **`<main>` scrolls** as expected (no clipped content, no locked viewport) — on a long route, **`main.scrollHeight > main.clientHeight`** and wheel/trackpad should update **`main.scrollTop`**, not **`window.scrollY`**. See [modus-wc-integration.mdc](./modus-wc-integration.mdc) → **Viewport height, scroll ownership** (full wrapper chain **`#root` → theme provider → shell divs**, not **`app-wrapper > modus-wc-theme-provider`**).
+- **Forms** read values correctly — confirm a quick `console.log(value)` from a real input proves the value is a `string` / `boolean`, not `"[object InputEvent]"` (then remove the log per **§2**).
+- **Modal** opens/closes via the native `<dialog>` API; focus returns to the invoking control — see [`modus-wc-modal`](../skills/modus-wc-modal/SKILL.md).
+
+## 8. Build, types, and lint
+
+- **`npm run build`** (or stack equivalent) **passes cleanly** — no TS errors, no warnings escalated to errors. Do **not** `--force` past failures to ship.
+- **`tsc --noEmit`** passes; no `// @ts-ignore` or `as unknown as X` introduced without a comment that explains why.
+- **No new ESLint errors**; pre-existing warnings should not be increased by your diff.
+- **No unused imports**, dead code, or stub files left behind.
+- **No `any`** introduced without justification.
+- **Bundle size** has not regressed unexpectedly (compare to baseline if your stack tracks it).
+
+## 9. Lighthouse / Web Vitals (recommended)
+
+Run Chrome DevTools **Lighthouse** on the deployed or local-prod build of changed routes:
+
+- **Accessibility ≥ 95** (target 100). Anything < 95 ships only with a documented exception.
+- **Best Practices ≥ 95** — surfaces deprecated APIs, missing `rel="noopener"`, image aspect issues, console errors as a Lighthouse signal.
+- **SEO ≥ 90** when the app is publicly indexed.
+- **Performance** — verify no major regression. Investigate **CLS** spikes (often from custom-element upgrade — see [`modus-wc-nextjs`](../skills/modus-wc-nextjs/SKILL.md) Layers 2–3 and [modus-nextjs.mdc](./modus-nextjs.mdc)) and **LCP** images that lack dimensions.
+- **`prefers-reduced-motion`** — respected for non-essential animations / transitions.
+
+## 10. Manual smoke tests
+
+A short end-to-end pass before merge:
+
+- Visit each new / changed route directly (deep link). No flash, no missing styles.
+- **Light + dark** theme switch via the Modus theme switcher — no console errors, all surfaces re-tone, charts and badges still readable (see [`modus-wc-chart-colors`](../skills/modus-wc-chart-colors/SKILL.md), including **Recharts `ResponsiveContainer` sizing §4b** so chart warnings do not mask real issues).
+- Resize **narrow → wide** — side navigation transitions overlay → push smoothly; no content jog when the drawer toggles.
+- Tab through primary actions; Enter/Space activates them; Esc dismisses overlays.
+- Trigger primary form submit / save flow; validation messages appear and are announced.
+- Refresh on a deep link with the side nav **expanded** and **collapsed** — both layouts render correctly.
+
+## 11. Security defaults
+
+- No **secrets / API keys** in the client bundle (search the diff for `process.env.*SECRET*`, `KEY=`, hard-coded tokens).
+- **`<a target="_blank">`** carries **`rel="noopener noreferrer"`**.
+- No **`dangerouslySetInnerHTML`** (or Vue `v-html`, Angular `[innerHTML]`) on user-supplied content without sanitization.
+- **CSP** allows the actual sources used (Modus jsDelivr fonts, Google Fonts, Trimble assets); **no CSP violations** in console. If you serve via Next.js with a nonce, the inline FOUC theme script consumes that nonce — see [modus-nextjs.mdc](./modus-nextjs.mdc) Layer 1.
+- No mixed content (HTTP assets on HTTPS pages).
+
+## 12. Pre-merge sign-off (one-liner)
+
+When the agent claims "done", **restate this as a self-check** in the PR description or the chat reply:
+
+> `[ ] a11y pass  [ ] console clean  [ ] no inline styles  [ ] semantic HTML  [ ] head elements  [ ] Modus icon fix (§6)  [ ] Modus shell ok  [ ] build + types + lint  [ ] Lighthouse ≥ 95  [ ] smoke tested  [ ] no secrets / CSP clean`
+
+If any box is unchecked, the work is **not** ready to ship — keep iterating, or call it out explicitly so the reviewer / requester can decide.
+
+## Common vibe-coding regressions to look for
+
+These show up disproportionately when code is generated quickly without runtime verification:
+
+- **`String(e.detail)`** on text inputs — yields `"[object InputEvent]"`. Use the readers from [`modus-wc-form-inputs`](../skills/modus-wc-form-inputs/SKILL.md).
+- **Slotted `<option>`** children inside **`modus-wc-select`** — pass an `options: ISelectOption[]` prop instead.
+- **`<button onClick>`** inside Modus subtrees instead of **`<ModusWcButton onButtonClick>`** with the documented `size` / `variant` / `color` defaults from [modus-essentials.mdc](./modus-essentials.mdc) → **UX defaults**.
+- **`color="secondary"`** on `ModusWcButton` for "any non-primary" — use `color="tertiary"` (see [`modus-wc-button`](../skills/modus-wc-button/SKILL.md)).
+- **Ternary-swapped default-slot bodies** inside `ModusWcCard` — use stable wrappers + `hidden` (see [`modus-wc-react-slotted-hosts`](../skills/modus-wc-react-slotted-hosts/SKILL.md)).
+- **Static hex** for chrome / status colors — use Modus tokens (`--modus-wc-color-base-*`, semantic `--modus-wc-color-*`).
+- **Inline `style={{ color: '#…' }}`** to "match a screenshot" — see **§3** above.
+- **Single shared `<title>`** for every route, or missing `description` / OG tags — see **§5**.
+- **`ModusWcButton` (or any `<button>`) in `modus-wc-dropdown-menu` `slot="button"`** — use host **`buttonVariant` / `buttonColor` / `buttonSize`** and **`slot="button"`** for label + icon markup only ([**modus-wc-dropdown-menu** skill](../skills/modus-wc-dropdown-menu/SKILL.md)).
+- **Missing or blank `modus-wc-icon` glyphs** — wrong **`name`**, **`variant`**, or **font not loaded**; run **§6** / [**modus-wc-icons-setup**](../skills/modus-wc-icons-setup/SKILL.md) until every icon resolves.

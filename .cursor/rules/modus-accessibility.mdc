@@ -1,0 +1,143 @@
+---
+description: Trimble Modus accessibility—WCAG 2.1 AA, POUR, design/dev/QA workflow, semantic HTML, ARIA, testing, and inclusive UX patterns.
+globs: "**/*.{tsx,ts,jsx,js,vue,html,css}"
+alwaysApply: false
+---
+
+# Modus & Trimble — accessibility
+
+Use with [modus-essentials.mdc](./modus-essentials.mdc) and [modus-setup.mdc](./modus-setup.mdc). Prefer **Modus Web Components** and design tokens so contrast, focus, and keyboard behavior stay aligned with **WCAG 2.1 Level AA**.
+
+## Standards and law (orientation)
+
+- **Target:** WCAG **2.1 Level AA** (POUR: Perceivable, Operable, Understandable, Robust).
+- **U.S.:** **ADA** (digital accessibility expectations), **Section 508** (federal electronic content; aligned with WCAG).
+- **EU:** **European Accessibility Act** and related requirements—plan for global products accordingly.
+
+## Why it matters
+
+- Inclusive products reach more users and reduce legal and reputational risk.
+- Keyboard navigation, clear language, and consistent patterns help **everyone**, not only assistive-tech users.
+- Accessible **process** (design → dev → QA) beats fixing only at release.
+
+## Design (Modus 2.0)
+
+- Use **Modus components and tokens** where possible; they are built for **WCAG 2.1 AA**-oriented contrast and interaction defaults.
+- **Patterns:** consistent navigation; clear form labels and errors; **visible focus**; descriptive control and link text; **never color alone** for meaning or state.
+- **Contrast:** meet minimum ratios (e.g. **4.5:1** normal text where applicable); verify when customizing colors.
+- **Keyboard:** all interactive flows work without a pointer; logical tab order; no hover-only or gesture-only critical paths.
+- **Cognitive load:** plain language, chunked content, meaningful headings, avoid unnecessary motion.
+
+## Development
+
+- **Semantic HTML first:** `button`, `a[href]`, `input`, `label`, `nav`, `main`, `section`, lists, tables; correct **heading order** (`h1` → `h2` → `h3`); no `div`/`span` as fake buttons/links.
+- **ARIA:** only when semantics are insufficient; use `aria-label`, `aria-labelledby`, `aria-describedby`, `aria-live` for dynamic status; do not override native roles incorrectly or hide visible content with `aria-hidden="true"`.
+- **`aria-hidden` and focus:** never put **`aria-hidden="true"`** on a focused node or an ancestor of the focused node (includes decorative **`modus-wc-icon`** inner markup when focus incorrectly lands there). Browsers **block** applying `aria-hidden` in that case and log: *Blocked aria-hidden on an element because its descendant retained focus* ([WAI-ARIA `aria-hidden`](https://w3c.github.io/aria/#aria-hidden)). Prefer **`inert`** on dismissed/off-screen regions (see **Collapsed overlay rail shell** and **Decorative icons and focus** below); **`inert`** also prevents focus from staying inside the subtree.
+- **Focus:** everything interactive reachable with **Tab**; `tabindex="0"` for custom focusables; `tabindex="-1"` for programmatic focus; **trap and restore** focus in modals; **no positive tabindex** (1, 2, …); never remove `:focus` / `:focus-visible` without an **equally visible** replacement.
+- **Forms:** associated labels; errors in text and exposed to assistive tech.
+- **Input:** support keyboard **and** pointer; do not rely on mouse-only handlers for essential actions.
+- **Modus events:** use documented custom events (e.g. `buttonClick`, `inputChange`) and documented `detail` shapes—see package docs / MCP.
+
+## QA and testing
+
+- Combine **automated** scans (e.g. **Axe**, **Lighthouse**, **WAVE**, **eslint-plugin-jsx-a11y**) with **manual** checks; automation catches roughly **30–40%** of issues—manual keyboard and screen reader passes are required.
+- **Manual:** keyboard-only traversal; **NVDA** (Windows), **VoiceOver** (macOS/iOS), **TalkBack** (Android); focus into/out of dialogs and menus; contrast checks (tokens or checkers).
+- **Acceptance criteria:** include accessibility; log defects and follow up.
+- **Trimble:** internal program and audits—see [Accessibility at Trimble](https://sites.google.com/trimble.com/accessibility); use the [Modus accessibility checklist](https://modus.trimble.com/foundations/accessibility/) for handoff.
+
+## Buttons (pattern reminder)
+
+- Prefer native `<button>`; icon-only controls need an **accessible name** (`aria-label` / `aria-labelledby`).
+- Toggle buttons: `aria-pressed`; loading: consider `aria-busy` and visually hidden status text.
+- Aligns with WCAG non-text content, keyboard operable, focus visible, and name/role/state expectations.
+
+## Quick reference (Modus 2.x apps)
+
+These are the smallest, most-copied accessibility patterns when scaffolding Modus surfaces. Use them in addition to — not instead of — the **Design / Development / QA** sections above.
+
+### Decorative icons
+
+Always mark visual-only icons as decorative; provide an accessible name on icon-only controls:
+
+```tsx
+// Decorative icon (no aria-label needed)
+<ModusWcIcon name="settings" decorative />
+
+// Accessible icon with label
+<ModusWcIcon name="close" decorative={false} aria-label="Close" />
+
+// Icon-only button — name lives on the button, icon stays decorative
+<ModusWcButton variant="borderless" color="tertiary" shape="square" size="sm" aria-label="Settings">
+  <ModusWcIcon name="settings" size="xs" decorative />
+</ModusWcButton>
+```
+
+### Collapsed overlay rail shell (`side-rail-wrapper`)
+
+**Symptom:** Console shows *Blocked aria-hidden … descendant retained focus* with **element with focus:** **`i.modus-wc-icon`** (or any rail control) and **ancestor with aria-hidden:** **`div.side-rail-wrapper`** (collapsed overlay pattern: **`width: 0`**, **`pointer-events: none`**, **`aria-hidden="true"`**).
+
+**Why:** Toggling **`aria-hidden="true"`** on the fixed wrapper while keyboard focus is still **inside** the rail (often on a menu row whose focused descendant is the inner icon node) violates the platform rule: an ancestor must not hide the subtree from assistive tech while something inside still has focus.
+
+**Do not ship:** **`aria-hidden="true"`** on **`side-rail-wrapper`** (or any ancestor of the rail) **without** first moving focus out of that subtree.
+
+**Do ship:**
+
+1. **`inert`** on the collapsed overlay rail wrapper (when **`mode === 'overlay'`** and drawer closed / wrapper width 0). Prefer **`inert`** over **`aria-hidden`** here; remove **`inert`** when the drawer opens. (`inert` implies **no user interaction**; pair with **`pointer-events: none`** only if your layout still needs it.)
+2. **`useLayoutEffect`** (or equivalent) when the rail **hides**: if **`wrapperRef.current?.contains(document.activeElement)`**, move focus to a safe target **`before`paint`** — e.g. **`#main-content`** with **`tabIndex={-1}`** only if programmatic focus is required, or the navbar hamburger / next sensible focus — **`focus({ preventScroll: true })`**.
+3. On **route change** that closes the overlay drawer, run the same **contains / blur / refocus** logic so focus does not remain inside a now-**`inert`** / visually dismissed rail.
+
+See [modus-side-nav.mdc](./modus-side-nav.mdc) checklist and **modus-wc-side-navigation** skill → **Overlay mode — collapsed rail**.
+
+### Decorative icons and focus (`aria-hidden`)
+
+**Symptom:** Same Chrome warning, often citing **`i.modus-wc-icon`** with **`aria-hidden="true"`** on the inner **`<i>`** (e.g. icon in **`slot="start-icon"`**), with or without a shell **`side-rail-wrapper`** ancestor also hidden.
+
+**Why:** With **`decorative`**, **`modus-wc-icon`** exposes **`aria-hidden="true"`** on its inner **`<i>`**. Some library builds also set **`tabindex="-1"`** on that node, which keeps it **programmatically focusable**. If roving tabindex, focus restore, or **`element.focus()`** lands on that **`<i>`**, it contradicts **[WAI-ARIA `aria-hidden`](https://www.w3.org/TR/wai-aria/#aria-hidden)** and triggers the warning.
+
+**Prevent in app code:**
+
+- Restore or move focus to the **real interactive host** (**`modus-wc-menu-item`**, **`modus-wc-button`**, **`modus-wc-tabs`** tab, modal trigger, etc.) — **never** **`focus()`** on **`ModusWcIcon`** / **`i.modus-wc-icon`** for primary navigation.
+- When hiding a **whole interactive subtree** (collapsed overlay rail, dismissed drawer), use **`inert`** on the wrapper — **do not** rely on **`aria-hidden="true"`** on that wrapper while focus may still be inside (see **Collapsed overlay rail shell** above).
+
+**Library / upgrades:** If warnings persist with correct focus management, track or patch **`@trimble-oss/moduswebcomponents`** so **`tabindex="-1"`** is **not** applied when **`decorative`** is true (see upstream **[modus-wc-2.0](https://github.com/trimble-oss/modus-wc-2.0/issues/)**). Apps may use **`patch-package`** until shipped.
+
+### Form labels
+
+Always associate labels with form controls. Either use the Modus component's built-in **`label`** prop, or pair an external **`<label htmlFor={id}>`** with **`id` / `inputId`** on the control.
+
+```tsx
+<ModusWcInputLabel forId="email" labelText="Email" />
+<ModusWcTextInput id="email" />
+```
+
+For multi-control toolbar rows where label-vs-button alignment matters, see [modus-layout.mdc](./modus-layout.mdc) → **Page header / toolbar: mixed controls**.
+
+### Reduced motion
+
+Respect user preference for reduced motion:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+```
+
+### Focus indicators
+
+Maintain visible focus indicators using the Modus primary token (do **not** remove `:focus` / `:focus-visible` without an equally visible replacement):
+
+```css
+:focus-visible {
+  outline: 2px solid var(--modus-wc-color-primary);
+  outline-offset: 2px;
+}
+```
+
+## External references
+
+- [WCAG 2.1 Quick Reference](https://www.w3.org/WAI/WCAG21/quickref/)
+- [W3C WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
+- [IBM Equal Access Toolkit](https://www.ibm.com/able/toolkit/)

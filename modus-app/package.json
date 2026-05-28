@@ -13,7 +13,8 @@
     "@trimble-oss/moduswebcomponents": "^1.4.0",
     "@trimble-oss/moduswebcomponents-react": "^1.4.0-react19",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "recharts": "3.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -31,6 +32,6 @@
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.10"
+    "vite": "8.0.14"
   }
 }

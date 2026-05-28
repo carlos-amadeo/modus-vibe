@@ -1,9 +1,4 @@
-/* App Shell template preview - constrain z-index so side nav doesn't overlap parent page */
-.app-shell-preview modus-wc-side-navigation {
-  z-index: 0 !important;
-}
-
-/* Smooth animations for sidebar and content */
+/* App Shell template preview */
 modus-wc-side-navigation,
 modus-wc-side-navigation .modus-wc-side-navigation,
 #app-shell-content {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   ModusWcTypography,
   ModusWcIcon,
@@ -11,7 +11,16 @@ import {
   ModusWcInputLabel,
 } from "@trimble-oss/moduswebcomponents-react";
 import { AppShellLayout } from './layouts';
+import { ActivitiesPage } from './pages/ActivitiesPage';
 import './App.css';
+
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })),
+);
+
+const CostPage = lazy(() =>
+  import('./pages/CostPage').then((module) => ({ default: module.CostPage })),
+);
 
 export default function App() {
   const [selectedItem, setSelectedItem] = useState("home");
@@ -58,19 +67,56 @@ export default function App() {
     <AppShellLayout
       contentId="app-shell-content"
       className="app-shell-preview min-h-[700px]"
-      useContainerWidth
       constrainMainContentWidth
+      contentClassName={
+        selectedItem === 'dashboard' || selectedItem === 'cost'
+          ? 'space-y-6 min-w-0 min-h-0 overflow-x-hidden'
+          : undefined
+      }
       selectedMenuItem={selectedItem}
       onMenuItemSelect={(e: CustomEvent<{ value: string }>) => {
         if (e.detail?.value) setSelectedItem(e.detail.value);
       }}
     >
+      {selectedItem === 'activities' ? (
+        <ActivitiesPage onNavigateHome={() => setSelectedItem('home')} />
+      ) : selectedItem === 'cost' ? (
+        <Suspense
+          fallback={
+            <ModusWcTypography
+              hierarchy="p"
+              size="md"
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
+              label="Loading financial dashboard…"
+            />
+          }
+        >
+          <CostPage />
+        </Suspense>
+      ) : selectedItem === 'dashboard' ? (
+        <Suspense
+          fallback={
+            <ModusWcTypography
+              hierarchy="p"
+              size="md"
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
+              label="Loading dashboard…"
+            />
+          }
+        >
+          <DashboardPage />
+        </Suspense>
+      ) : (
+        <>
       <ModusWcBreadcrumbs
+            size="sm"
             items={[
               { label: "Home", url: "#" },
-              { label: "Dashboard", url: "#" },
-              { label: "Overview", url: "#" },
+              { label: "Overview" },
             ]}
+            onBreadcrumbClick={(e: CustomEvent<{ label: string }>) => {
+              if (e.detail?.label === "Home") setSelectedItem("home");
+            }}
           />
           <div data-app-shell-preview className="app-shell-preview-wrapper">
           <div className="app-shell-preview-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-wrap mb-3">
@@ -186,64 +232,65 @@ export default function App() {
             )}
           </div>
           </div>
-
-      <ModusWcModal modalId={modalId} customClass="sm:max-w-[425px]">
-        <ModusWcTypography
-          slot="header"
-          hierarchy="h2"
-          size="lg"
-          weight="semibold"
-          label="Create Item"
-        />
-        <div slot="content" className="flex flex-col gap-2 py-4">
-          <div className="flex flex-col gap-2">
-            <ModusWcInputLabel
-              forId="create-item-label"
-              labelText="Name"
+          <ModusWcModal modalId={modalId} customClass="sm:max-w-[425px]">
+            <ModusWcTypography
+              slot="header"
+              hierarchy="h2"
+              size="lg"
+              weight="semibold"
+              label="Create Item"
             />
-            <ModusWcTextInput
-              inputId="create-item-label"
-              value={newItemLabel}
-              onInputChange={(e: CustomEvent) => {
-                const val = e.detail?.target?.value ?? "";
-                setNewItemLabel(val);
-              }}
-              customClass="w-full"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <ModusWcInputLabel
-              forId="create-item-description"
-              labelText="Description"
-            />
-            <ModusWcTextInput
-              inputId="create-item-description"
-              value={newItemDescription}
-              onInputChange={(e: CustomEvent) => {
-                const val = e.detail?.target?.value ?? "";
-                setNewItemDescription(val);
-              }}
-              customClass="w-full"
-            />
-          </div>
-        </div>
-        <div slot="footer" className="flex justify-end gap-2">
-          <ModusWcButton
-            variant="outlined"
-            color="tertiary"
-            onButtonClick={closeCreateModal}
-          >
-            Cancel
-          </ModusWcButton>
-          <ModusWcButton
-            variant="filled"
-            color="primary"
-            onButtonClick={handleCreateItem}
-          >
-            Create
-          </ModusWcButton>
-        </div>
-      </ModusWcModal>
+            <div slot="content" className="flex flex-col gap-2 py-4">
+              <div className="flex flex-col gap-2">
+                <ModusWcInputLabel
+                  forId="create-item-label"
+                  labelText="Name"
+                />
+                <ModusWcTextInput
+                  inputId="create-item-label"
+                  value={newItemLabel}
+                  onInputChange={(e: CustomEvent) => {
+                    const val = e.detail?.target?.value ?? "";
+                    setNewItemLabel(val);
+                  }}
+                  customClass="w-full"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <ModusWcInputLabel
+                  forId="create-item-description"
+                  labelText="Description"
+                />
+                <ModusWcTextInput
+                  inputId="create-item-description"
+                  value={newItemDescription}
+                  onInputChange={(e: CustomEvent) => {
+                    const val = e.detail?.target?.value ?? "";
+                    setNewItemDescription(val);
+                  }}
+                  customClass="w-full"
+                />
+              </div>
+            </div>
+            <div slot="footer" className="flex justify-end gap-2">
+              <ModusWcButton
+                variant="outlined"
+                color="tertiary"
+                onButtonClick={closeCreateModal}
+              >
+                Cancel
+              </ModusWcButton>
+              <ModusWcButton
+                variant="filled"
+                color="primary"
+                onButtonClick={handleCreateItem}
+              >
+                Create
+              </ModusWcButton>
+            </div>
+          </ModusWcModal>
+        </>
+      )}
     </AppShellLayout>
   );
 }

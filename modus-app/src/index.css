@@ -11,8 +11,127 @@ modus-wc-card:not(:defined),
 modus-wc-typography:not(:defined),
 modus-wc-icon:not(:defined),
 modus-wc-menu:not(:defined),
-modus-wc-menu-item:not(:defined) {
+modus-wc-menu-item:not(:defined),
+modus-wc-badge:not(:defined),
+modus-wc-select:not(:defined),
+modus-wc-table:not(:defined),
+modus-wc-tabs:not(:defined),
+modus-wc-utility-panel:not(:defined) {
   visibility: hidden;
+}
+
+/* Activity Dashboard — KPI row scroll */
+[data-activity-dashboard] modus-wc-card {
+  margin-bottom: 0;
+}
+
+[data-app-shell-preview] modus-wc-card,
+.app-shell-preview modus-wc-card {
+  margin-bottom: 0;
+}
+
+[data-activity-dashboard] .activity-dashboard-kpi-scroll {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+[data-activity-dashboard] .activity-dashboard-kpi-grid {
+  grid-template-columns: repeat(4, minmax(160px, 1fr)) !important;
+  min-width: min-content !important;
+}
+
+/* Analytics Dashboard — container queries for responsive layout */
+[data-analytics-dashboard].analytics-dashboard-wrapper {
+  container-type: inline-size;
+  container-name: analytics-dashboard;
+}
+
+[data-analytics-dashboard] modus-wc-card {
+  margin-bottom: 0;
+}
+
+[data-analytics-dashboard] .analytics-dashboard-stats-scroll {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+[data-analytics-dashboard] .analytics-dashboard-stats-grid {
+  grid-template-columns: repeat(4, minmax(180px, 1fr)) !important;
+  min-width: min-content !important;
+}
+
+@container analytics-dashboard (max-width: 640px) {
+  [data-analytics-dashboard] .analytics-dashboard-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  [data-analytics-dashboard] .analytics-dashboard-charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  [data-analytics-dashboard] .analytics-dashboard-charts-grid > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+@container analytics-dashboard (min-width: 641px) {
+  [data-analytics-dashboard] .analytics-dashboard-charts-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Financial Dashboard — container queries for responsive layout */
+[data-financial-dashboard].financial-dashboard-wrapper {
+  container-type: inline-size;
+  container-name: financial-dashboard;
+}
+
+[data-financial-dashboard] modus-wc-card {
+  margin-bottom: 0;
+}
+
+[data-financial-dashboard] .financial-dashboard-stats-scroll {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+[data-financial-dashboard] .financial-dashboard-stats-grid {
+  grid-template-columns: repeat(4, minmax(180px, 1fr)) !important;
+  min-width: min-content !important;
+}
+
+[data-financial-dashboard] .financial-dashboard-amount-negative {
+  color: var(--modus-wc-color-error);
+}
+
+@container financial-dashboard (max-width: 640px) {
+  [data-financial-dashboard] .financial-dashboard-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  [data-financial-dashboard] .financial-dashboard-charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  [data-financial-dashboard] .financial-dashboard-charts-grid > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+@container financial-dashboard (min-width: 641px) {
+  [data-financial-dashboard] .financial-dashboard-charts-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 
 /* Root variables */

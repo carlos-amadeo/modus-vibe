@@ -1,17 +1,8 @@
 import { lazy, Suspense, useState } from "react";
-import {
-  ModusWcTypography,
-  ModusWcIcon,
-  ModusWcBreadcrumbs,
-  ModusWcTabs,
-  ModusWcButton,
-  ModusWcCard,
-  ModusWcModal,
-  ModusWcTextInput,
-  ModusWcInputLabel,
-} from "@trimble-oss/moduswebcomponents-react";
+import { ModusWcTypography } from "@trimble-oss/moduswebcomponents-react";
 import { AppShellLayout } from './layouts';
 import { ActivitiesPage } from './pages/ActivitiesPage';
+import { HomeOverviewPage } from './pages/HomeOverviewPage';
 import './App.css';
 
 const DashboardPage = lazy(() =>
@@ -20,6 +11,10 @@ const DashboardPage = lazy(() =>
 
 const CostPage = lazy(() =>
   import('./pages/CostPage').then((module) => ({ default: module.CostPage })),
+);
+
+const DocumentsPage = lazy(() =>
+  import('./pages/DocumentsPage').then((module) => ({ default: module.DocumentsPage })),
 );
 
 export default function App() {
@@ -36,6 +31,7 @@ export default function App() {
   const [newItemLabel, setNewItemLabel] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const modalId = "app-shell-create-item-modal";
+  const isDocuments = selectedItem === "documents";
 
   const openCreateModal = () => {
     setNewItemLabel("");
@@ -66,12 +62,15 @@ export default function App() {
   return (
     <AppShellLayout
       contentId="app-shell-content"
-      className="app-shell-preview min-h-[700px]"
+      className={`app-shell-preview min-h-[700px]${isDocuments ? " file-storage-preview" : ""}`}
       constrainMainContentWidth
+      useContainerWidth={isDocuments}
       contentClassName={
-        selectedItem === 'dashboard' || selectedItem === 'cost'
-          ? 'space-y-6 min-w-0 min-h-0 overflow-x-hidden'
-          : undefined
+        isDocuments
+          ? "flex flex-col flex-1 min-h-0 min-w-0 !p-0"
+          : selectedItem === "dashboard" || selectedItem === "cost"
+            ? "space-y-6 min-w-0 min-h-0 overflow-x-hidden"
+            : undefined
       }
       selectedMenuItem={selectedItem}
       onMenuItemSelect={(e: CustomEvent<{ value: string }>) => {
@@ -80,6 +79,21 @@ export default function App() {
     >
       {selectedItem === 'activities' ? (
         <ActivitiesPage onNavigateHome={() => setSelectedItem('home')} />
+      ) : isDocuments ? (
+        <Suspense
+          fallback={
+            <ModusWcTypography
+              hierarchy="p"
+              size="md"
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
+              label="Loading file storage…"
+            />
+          }
+        >
+          <div className="w-full min-w-0 min-h-0 flex flex-col flex-1 px-4 sm:px-6 pb-6 pt-4 box-border">
+            <DocumentsPage />
+          </div>
+        </Suspense>
       ) : selectedItem === 'cost' ? (
         <Suspense
           fallback={
@@ -107,189 +121,20 @@ export default function App() {
           <DashboardPage />
         </Suspense>
       ) : (
-        <>
-      <ModusWcBreadcrumbs
-            size="sm"
-            items={[
-              { label: "Home", url: "#" },
-              { label: "Overview" },
-            ]}
-            onBreadcrumbClick={(e: CustomEvent<{ label: string }>) => {
-              if (e.detail?.label === "Home") setSelectedItem("home");
-            }}
-          />
-          <div data-app-shell-preview className="app-shell-preview-wrapper">
-          <div className="app-shell-preview-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-wrap mb-3">
-            <div className="flex items-center gap-1">
-              <ModusWcIcon
-                name="cube"
-                size="md"
-                customClass="text-[var(--modus-wc-color-base-content)]"
-                decorative
-              />
-              <ModusWcTypography
-                hierarchy="h1"
-                size="3xl"
-                weight="light"
-                label="Overview"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <ModusWcButton
-                variant={viewMode === "grid" ? "filled" : "borderless"}
-                color="tertiary"
-                shape="square"
-                size="sm"
-                onButtonClick={() => setViewMode("grid")}
-                aria-label="Grid view"
-              >
-                <ModusWcIcon name="view_grid" decorative />
-              </ModusWcButton>
-              <ModusWcButton
-                variant={viewMode === "list" ? "filled" : "borderless"}
-                color="tertiary"
-                shape="square"
-                size="sm"
-                onButtonClick={() => setViewMode("list")}
-                aria-label="List view"
-              >
-                <ModusWcIcon name="view_list" decorative />
-              </ModusWcButton>
-              <ModusWcButton
-                variant="filled"
-                color="primary"
-                size="sm"
-                onButtonClick={openCreateModal}
-              >
-                <ModusWcIcon name="add" size="xs" decorative />
-                Create Item
-              </ModusWcButton>
-            </div>
-          </div>
-          <div className="tabs-scroll-wrapper">
-            <ModusWcTabs
-              tabs={[
-                { label: "Overview" },
-                { label: "Analytics" },
-                { label: "Reports" },
-              ]}
-              activeTabIndex={0}
-            />
-          </div>
-          <div
-            className={`app-shell-preview-grid flex-1 overflow-auto gap-3 mt-3 ${
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                : "flex flex-col"
-            }`}
-          >
-            {viewMode === "grid" ? (
-              <>
-                {items.map((item) => (
-                  <ModusWcCard key={item.id} bordered={false}>
-                    <ModusWcTypography
-                      slot="title"
-                      hierarchy="p"
-                      size="sm"
-                      weight="semibold"
-                      label={item.label}
-                    />
-                    <ModusWcTypography
-                      slot="subtitle"
-                      hierarchy="p"
-                      size="xs"
-                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                      label={item.description}
-                    />
-                  </ModusWcCard>
-                ))}
-              </>
-            ) : (
-              <>
-                {items.map((item) => (
-                  <ModusWcCard
-                    key={item.id}
-                    bordered={false}
-                    customClass="app-shell-list-card w-full min-w-full flex items-center gap-4 justify-start text-left"
-                  >
-                    <ModusWcTypography
-                      slot="title"
-                      hierarchy="p"
-                      size="sm"
-                      weight="semibold"
-                      label={item.label}
-                    />
-                    <ModusWcTypography
-                      slot="subtitle"
-                      hierarchy="p"
-                      size="xs"
-                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                      label={item.description}
-                    />
-                  </ModusWcCard>
-                ))}
-              </>
-            )}
-          </div>
-          </div>
-          <ModusWcModal modalId={modalId} customClass="sm:max-w-[425px]">
-            <ModusWcTypography
-              slot="header"
-              hierarchy="h2"
-              size="lg"
-              weight="semibold"
-              label="Create Item"
-            />
-            <div slot="content" className="flex flex-col gap-2 py-4">
-              <div className="flex flex-col gap-2">
-                <ModusWcInputLabel
-                  forId="create-item-label"
-                  labelText="Name"
-                />
-                <ModusWcTextInput
-                  inputId="create-item-label"
-                  value={newItemLabel}
-                  onInputChange={(e: CustomEvent) => {
-                    const val = e.detail?.target?.value ?? "";
-                    setNewItemLabel(val);
-                  }}
-                  customClass="w-full"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <ModusWcInputLabel
-                  forId="create-item-description"
-                  labelText="Description"
-                />
-                <ModusWcTextInput
-                  inputId="create-item-description"
-                  value={newItemDescription}
-                  onInputChange={(e: CustomEvent) => {
-                    const val = e.detail?.target?.value ?? "";
-                    setNewItemDescription(val);
-                  }}
-                  customClass="w-full"
-                />
-              </div>
-            </div>
-            <div slot="footer" className="flex justify-end gap-2">
-              <ModusWcButton
-                variant="outlined"
-                color="tertiary"
-                onButtonClick={closeCreateModal}
-              >
-                Cancel
-              </ModusWcButton>
-              <ModusWcButton
-                variant="filled"
-                color="primary"
-                onButtonClick={handleCreateItem}
-              >
-                Create
-              </ModusWcButton>
-            </div>
-          </ModusWcModal>
-        </>
+        <HomeOverviewPage
+          items={items}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onNavigateHome={() => setSelectedItem("home")}
+          modalId={modalId}
+          newItemLabel={newItemLabel}
+          newItemDescription={newItemDescription}
+          onNewItemLabelChange={setNewItemLabel}
+          onNewItemDescriptionChange={setNewItemDescription}
+          onOpenCreateModal={openCreateModal}
+          onCloseCreateModal={closeCreateModal}
+          onCreateItem={handleCreateItem}
+        />
       )}
     </AppShellLayout>
   );

@@ -1,4 +1,10 @@
-import { type ReactNode, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import {
   ModusWcNavbar,
   ModusWcSideNavigation,
@@ -6,6 +12,24 @@ import {
   ModusWcMenuItem,
   ModusWcIcon,
 } from '@trimble-oss/moduswebcomponents-react'
+import {
+  GlobalSearchProvider,
+  useGlobalSearch,
+} from '../context/GlobalSearchContext'
+
+const MOBILE_SHELL_MAX_PX = 640
+
+export interface NavbarVisibilityConfig {
+  logo?: boolean
+  mainMenu?: boolean
+  apps?: boolean
+  search?: boolean
+  searchInput?: boolean
+  notifications?: boolean
+  help?: boolean
+  user?: boolean
+  ai?: boolean
+}
 
 interface AppShellLayoutProps {
   children: ReactNode
@@ -15,9 +39,12 @@ interface AppShellLayoutProps {
   contentClassName?: string
   selectedMenuItem?: string
   onMenuItemSelect?: (e: CustomEvent<{ value: string }>) => void
+  navbarCenter?: ReactNode
+  navbarVisibility?: NavbarVisibilityConfig
+  useContainerWidth?: boolean
 }
 
-export function AppShellLayout({
+function AppShellLayoutInner({
   children,
   contentId,
   className = '',
@@ -25,43 +52,120 @@ export function AppShellLayout({
   contentClassName = '',
   selectedMenuItem = 'home',
   onMenuItemSelect,
+  navbarCenter,
+  navbarVisibility,
+  useContainerWidth = false,
 }: AppShellLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const [isNarrowShell, setIsNarrowShell] = useState(false)
+  const shellRef = useRef<HTMLDivElement>(null)
+  const navbarRef = useRef<HTMLElement | null>(null)
+  const { setQuery, searchInputOpen, setSearchInputOpen, openSearch } =
+    useGlobalSearch()
 
-  const handleMainMenuToggle = () => {
-    // Push + sibling rail without slot="main-menu": decouple mainMenuOpen so the
-    // navbar flyout slab does not block pointer events on the side nav (§3.B).
-    setSidebarOpen((prev) => !prev)
-  }
+  useEffect(() => {
+    if (!useContainerWidth || !shellRef.current) return
+
+    const node = shellRef.current
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0
+      setIsNarrowShell(width < MOBILE_SHELL_MAX_PX)
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [useContainerWidth])
+
+  /** Push + empty `slot="main-menu"`: keep navbar flyout closed (§3.B). */
+  const syncNavbarMainMenuClosed = useCallback(() => {
+    const host = navbarRef.current as (HTMLElement & { mainMenuOpen?: boolean }) | null
+    if (host) host.mainMenuOpen = false
+  }, [])
+
+  useEffect(() => {
+    syncNavbarMainMenuClosed()
+  }, [sidebarExpanded, selectedMenuItem, searchInputOpen, syncNavbarMainMenuClosed])
+
+  const handleHamburgerToggle = useCallback(() => {
+    setSidebarExpanded((prev) => !prev)
+  }, [])
+
+  const handleSideNavExpandedChange = useCallback((e: CustomEvent<boolean>) => {
+    setSidebarExpanded(Boolean(e.detail))
+  }, [])
 
   const handleMenuItemClick = (value: string) => {
-    if (onMenuItemSelect) {
-      onMenuItemSelect(new CustomEvent('menuItemSelect', { detail: { value } }) as any)
-    }
+    onMenuItemSelect?.(
+      { detail: { value } } as CustomEvent<{ value: string }>,
+    )
   }
 
+  const visibility = {
+    logo: true,
+    mainMenu: true,
+    user: true,
+    search: true,
+    searchInput: true,
+    apps: false,
+    notifications: false,
+    help: false,
+    ai: false,
+    ...navbarVisibility,
+  }
+
+  const showNavbarCenter = Boolean(navbarCenter) && !isNarrowShell
+
   return (
-    <div className={`flex h-screen flex-col ${className}`}>
+    <div
+      ref={useContainerWidth ? shellRef : undefined}
+      className={`app-shell-layout flex h-screen flex-col ${className}`.trim()}
+      data-mobile={useContainerWidth && isNarrowShell ? 'true' : undefined}
+      data-side-nav-expanded={sidebarExpanded ? 'true' : 'false'}
+    >
       <ModusWcNavbar
+        ref={navbarRef as never}
         mainMenuOpen={false}
-        visibility={{
-          logo: true,
-          mainMenu: true,
-          user: true,
-        }}
+        visibility={visibility}
+        searchInputOpen={searchInputOpen}
         userCard={{
           name: 'User Name',
           email: 'user@trimble.com',
         }}
-        onMainMenuOpenChange={handleMainMenuToggle}
-      />
+        textOverrides={{ search: 'Search' }}
+        onMainMenuOpenChange={handleHamburgerToggle}
+        onSearchClick={openSearch}
+        onSearchInputOpenChange={(e: CustomEvent<boolean>) => {
+          setSearchInputOpen(Boolean(e.detail))
+        }}
+        onSearchChange={(e: CustomEvent<{ value: string }>) => {
+          setQuery(e.detail?.value ?? '')
+        }}
+        onUserMenuOpenChange={() => {
+          syncNavbarMainMenuClosed()
+        }}
+      >
+        {navbarCenter ? (
+          <div
+            slot="center"
+            className={
+              showNavbarCenter
+                ? 'file-storage-navbar-search w-full max-w-md min-w-0'
+                : 'file-storage-navbar-search'
+            }
+            hidden={!showNavbarCenter}
+          >
+            {navbarCenter}
+          </div>
+        ) : null}
+      </ModusWcNavbar>
 
       <div className="flex flex-1 min-h-0" style={{ position: 'relative' }}>
         <ModusWcSideNavigation
-          expanded={sidebarOpen}
+          expanded={sidebarExpanded}
           maxWidth="256px"
           mode="push"
+          collapseOnClickOutside={false}
           targetContent={`#${contentId}`}
+          onExpandedChange={handleSideNavExpandedChange}
         >
           <ModusWcMenu>
             <ModusWcMenuItem
@@ -96,17 +200,20 @@ export function AppShellLayout({
             >
               <ModusWcIcon slot="start-icon" name="costs" variant="outlined" decorative />
             </ModusWcMenuItem>
+            <ModusWcMenuItem
+              label="Documents"
+              value="documents"
+              selected={selectedMenuItem === 'documents'}
+              onItemSelect={() => handleMenuItemClick('documents')}
+            >
+              <ModusWcIcon slot="start-icon" name="document" variant="outlined" decorative />
+            </ModusWcMenuItem>
           </ModusWcMenu>
         </ModusWcSideNavigation>
 
         <main
           id={contentId}
-          className="overflow-auto"
-          style={{ 
-            backgroundColor: 'var(--modus-wc-color-base-page)',
-            flex: 1,
-            minWidth: 0,
-          }}
+          className="flex-1 min-h-0 min-w-0 overflow-auto bg-[var(--modus-wc-color-base-page)]"
         >
           <div
             className={contentClassName}
@@ -123,5 +230,13 @@ export function AppShellLayout({
         </main>
       </div>
     </div>
+  )
+}
+
+export function AppShellLayout(props: AppShellLayoutProps) {
+  return (
+    <GlobalSearchProvider>
+      <AppShellLayoutInner {...props} />
+    </GlobalSearchProvider>
   )
 }

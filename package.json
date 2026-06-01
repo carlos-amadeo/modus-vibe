@@ -1,0 +1,10 @@
+{
+  "name": "modus-vibe",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix modus-app",
+    "build": "npm run build --prefix modus-app",
+    "lint": "npm run lint --prefix modus-app",
+    "preview": "npm run preview --prefix modus-app"
+  }
+}

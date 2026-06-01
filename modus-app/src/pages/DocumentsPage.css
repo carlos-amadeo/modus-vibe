@@ -1,0 +1,148 @@
+/* File Storage — layout and drawer */
+[data-file-storage].file-storage-wrapper {
+  container-type: inline-size;
+  container-name: file-storage;
+  position: relative;
+}
+
+.file-storage-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  overflow: hidden;
+  transition: width 0.3s ease-in-out;
+}
+
+.file-storage-drawer-panel {
+  border-left: 1px solid var(--modus-wc-color-base-200) !important;
+  box-shadow: var(--app-elevation-md, -4px 0 16px rgba(0, 0, 0, 0.12));
+}
+
+.app-shell-layout[data-mobile='true'] .file-storage-folders-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.app-shell-layout[data-mobile='true'] .file-storage-files-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.app-shell-layout[data-mobile='true'] .file-storage-header {
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+.file-storage-drawer-inner {
+  height: 100%;
+  overflow-y: auto;
+}
+
+@container file-storage (max-width: 640px) {
+  .file-storage-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+/* List view table chrome */
+[data-data-table-view] modus-wc-table .modus-wc-table thead,
+[data-data-table-view] modus-wc-table .modus-wc-table th {
+  background-color: var(--modus-wc-color-base-100) !important;
+}
+
+[data-data-table-view] modus-wc-table .modus-wc-table,
+[data-data-table-view] modus-wc-table .modus-wc-table table {
+  border: 1px solid var(--modus-wc-color-base-200) !important;
+  border-collapse: collapse;
+}
+
+[data-data-table-view] modus-wc-table .modus-wc-table th,
+[data-data-table-view] modus-wc-table .modus-wc-table td {
+  border: 1px solid var(--modus-wc-color-base-200) !important;
+}
+
+/* Table cell helpers (light DOM) */
+.file-storage-table-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.file-storage-table-cell--name {
+  flex-wrap: wrap;
+}
+
+.file-storage-table-icon {
+  flex-shrink: 0;
+}
+
+.file-storage-table-icon--folder {
+  color: var(--modus-wc-color-warning);
+}
+
+.file-storage-table-icon--file {
+  color: var(--modus-wc-color-primary);
+}
+
+.file-storage-table-name,
+.file-storage-table-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.file-storage-table-owner {
+  color: var(--modus-wc-color-base-content-low-contrast);
+}
+
+.file-storage-card-host,
+.file-storage-folder-host {
+  cursor: pointer;
+  border-radius: var(--modus-wc-radius-md, 8px);
+}
+
+.file-storage-card-host:focus-visible,
+.file-storage-folder-host:focus-visible {
+  outline: 2px solid var(--modus-wc-color-primary);
+  outline-offset: 2px;
+}
+
+.file-storage-card-host--selected,
+.file-storage-folder-host.file-storage-card-host--selected {
+  outline: 2px solid var(--modus-wc-color-primary);
+  outline-offset: 0;
+}
+
+.file-storage-card-preview {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background-color: var(--modus-wc-color-base-200);
+}
+
+.file-storage-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-storage-drawer-preview {
+  aspect-ratio: 16 / 9;
+  background-color: var(--modus-wc-color-base-200);
+  overflow: hidden;
+  border-radius: var(--modus-wc-radius-md, 8px) var(--modus-wc-radius-md, 8px) 0 0;
+}
+
+.file-storage-drawer-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Navbar center search — hide when [hidden] (Modus unlayered flex wins over Tailwind) */
+.app-shell-layout modus-wc-navbar [slot='center'][hidden] {
+  display: none !important;
+}

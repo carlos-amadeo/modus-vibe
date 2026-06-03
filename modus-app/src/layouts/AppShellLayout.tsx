@@ -216,12 +216,11 @@ function AppShellLayoutInner({
           className="flex-1 min-h-0 min-w-0 overflow-auto bg-[var(--modus-wc-color-base-page)]"
         >
           <div
-            className={contentClassName}
+            className={`app-shell-main-inner ${contentClassName}`.trim()}
             style={{
               maxWidth: constrainMainContentWidth ? '100%' : 'none',
               margin: '0 auto',
               width: '100%',
-              padding: '0 1.5rem 1.5rem',
               boxSizing: 'border-box',
             }}
           >

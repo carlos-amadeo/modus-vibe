@@ -1,0 +1,30 @@
+---
+description: modus-vibe app shell — main content column padding contract (no top inset).
+globs:
+  - "modus-app/**/*.{tsx,ts,css}"
+alwaysApply: false
+---
+
+# modus-vibe — app shell main content
+
+When adding or editing pages in **`modus-app`**, follow the shared shell padding contract in **`AppShellLayout`**.
+
+## No top padding on the main column
+
+- **`AppShellLayout`** wraps route content in **`.app-shell-main-inner`** (`modus-app/src/index.css`): **`padding-top: 0`**, horizontal **`1.5rem`**, bottom **`1.5rem`**.
+- **Do not** add **`pt-*`**, **`py-*`** (top), or **`padding-top`** on route root wrappers inside **`#app-shell-content`** unless a design explicitly needs extra inset below the navbar.
+- Page titles, breadcrumbs, and first-row headers should start **flush with the top** of the main column; use **`mb-*` / `gap-*`** below the header for rhythm—not shell-level top padding.
+- Full-bleed routes (e.g. Documents) may pass **`contentClassName="… !p-0"`** on the shell inner wrapper; re-apply **horizontal + bottom** padding on the **page** wrapper only (**`px-4 sm:px-6 pb-6`**, **no `pt-*`**).
+
+## New pages checklist
+
+1. Render inside **`AppShellLayout`** (default **`.app-shell-main-inner`** padding applies).
+2. Avoid **`pt-4` / `pt-6` / `p-4` / `p-6`** on the outermost page **`div`**—use **`px-*`** and **`pb-*`** if the shell padding was zeroed with **`!p-0`**.
+3. Keep horizontal gutters (**`px-4`** minimum on narrow bands) per [modus-layout.mdc](./modus-layout.mdc).
+
+## Documents — file Info panel (right rail)
+
+- Use **`FileInfoPanel`** (`modus-app/src/pages/FileInfoPanel.tsx`): Connect-style **single-scroll “Info”** panel (fixed **320px**), not tabs.
+- **Drill-ins** (back chevron): History (**See history**), Access, Location, Attached to (**View all**).
+- **Inline edit** for name, description, custom fields; **Save / Cancel** footer when dirty.
+- Secondary file actions (**View**, **Redline**, **Check out**, **Move**, **Copy**, **Delete**) in header **overflow** menu only.

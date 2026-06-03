@@ -14,6 +14,12 @@ export const FILE_PREVIEW_IMAGES = [
 
 export type FileLabel = 'Internal' | 'Confidential' | 'Restricted'
 
+export const FILE_LABELS: readonly FileLabel[] = [
+  'Internal',
+  'Confidential',
+  'Restricted',
+] as const
+
 export interface FileItem {
   id: string
   name: string

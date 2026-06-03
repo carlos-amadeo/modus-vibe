@@ -139,6 +139,13 @@ modus-wc-utility-panel:not(:defined) {
   --padding-card: 1rem;
 }
 
+/* App shell — main column inset (no top padding; pages own title rhythm) */
+.app-shell-main-inner {
+  padding-top: 0;
+  padding-inline: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
 /* Root and theme provider flex chain for scroll ownership */
 #root {
   height: 100dvh;

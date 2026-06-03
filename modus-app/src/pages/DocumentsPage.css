@@ -38,6 +38,158 @@
   overflow-y: auto;
 }
 
+/* Connect-style Info panel */
+.file-info-summary-card modus-wc-text-input {
+  width: 100%;
+}
+
+.file-info-summary-card-body {
+  padding: 0.75rem 0.75rem 0;
+}
+
+.file-info-utility-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.file-info-utility-panel-body {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.modus-wc-utility-panel-header .file-info-panel-header-title modus-wc-typography,
+.file-info-panel-header-title modus-wc-typography {
+  margin-bottom: 0;
+}
+
+/* Classification dropdown: trigger looks like badge only; caret stays inside badge */
+.file-info-classification-dropdown {
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.file-info-classification-trigger {
+  display: inline-flex;
+  pointer-events: none;
+}
+
+.file-info-classification-badge-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+}
+
+.file-info-classification-dropdown::part(button),
+.file-info-classification-dropdown button {
+  padding: 0 !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.modus-wc-utility-panel-header modus-wc-dropdown-menu,
+.modus-wc-utility-panel-header modus-wc-button {
+  flex-shrink: 0;
+}
+
+.file-info-prop-row modus-wc-typography,
+.file-info-prop-stacked modus-wc-typography {
+  margin-bottom: 0;
+}
+
+.file-info-properties-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Custom fields: same h5 alignment as other sections (no collapse summary padding) */
+.file-info-custom-fields-toggle {
+  cursor: pointer;
+}
+
+.file-info-custom-fields-toggle:focus-visible {
+  outline: 2px solid var(--modus-wc-color-primary);
+  outline-offset: 2px;
+}
+
+.file-info-custom-fields-section[data-expanded='true'] .file-info-custom-fields-chevron {
+  transform: rotate(180deg);
+}
+
+.file-info-custom-fields-chevron {
+  transition: transform 0.2s ease-out;
+}
+
+.file-info-text-link {
+  color: var(--modus-wc-color-primary);
+  font-size: var(--modus-wc-font-size-sm, 0.875rem);
+  line-height: var(--modus-wc-line-height-sm, 1.25rem);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.file-info-text-link:hover {
+  color: var(--modus-wc-color-primary-strong, var(--modus-wc-color-primary));
+}
+
+.file-info-properties modus-wc-textarea,
+.file-info-description modus-wc-textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.file-info-history-list {
+  padding-left: 1rem;
+  list-style-position: outside;
+}
+
+/* Match panel content inset (px-4) for attachment list markers / items */
+.file-info-attached-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 1rem;
+  list-style-position: outside;
+}
+
+.file-info-attached-item {
+  padding: 4px;
+}
+
+/* Avatar group with gap (not overlap): omit Daisy ring borders between separated avatars */
+.file-info-access-avatars.modus-wc-avatar-group :where(.modus-wc-avatar) {
+  border-width: 0;
+}
+
+/* Spacing: margin on Modus hosts via customClass does not affect flex layout — use wrappers */
+.file-info-access-section .file-info-access-action {
+  margin-top: 16px;
+}
+
+.file-info-access-section .file-info-access-avatars-row {
+  margin-top: 8px;
+}
+
+.file-info-access-action modus-wc-button {
+  width: 100%;
+  max-width: 100%;
+}
+
+.file-info-path-action {
+  margin-top: 8px;
+}
+
 @container file-storage (max-width: 640px) {
   .file-storage-header {
     flex-direction: column !important;
@@ -127,6 +279,10 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.file-info-panel-header-title {
+  flex-wrap: wrap;
 }
 
 .file-storage-drawer-preview {

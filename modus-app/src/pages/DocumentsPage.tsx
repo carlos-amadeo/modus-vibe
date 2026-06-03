@@ -5,9 +5,9 @@ import {
   ModusWcButton,
   ModusWcCard,
   ModusWcBadge,
-  ModusWcTabs,
   ModusWcTable,
 } from '@trimble-oss/moduswebcomponents-react'
+import { FileInfoPanel } from './FileInfoPanel'
 import { useGlobalSearch } from '../context/GlobalSearchContext'
 import type { ITableColumn } from '@trimble-oss/moduswebcomponents'
 import {
@@ -30,23 +30,34 @@ export function DocumentsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null)
-  const [drawerTabIndex, setDrawerTabIndex] = useState(0)
+  const [files, setFiles] = useState<FileItem[]>(() => [...SUGGESTED_FILES])
+  const [folders, setFolders] = useState<FolderItem[]>(() => [...SUGGESTED_FOLDERS])
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const filteredFolders = useMemo(() => {
-    if (!normalizedQuery) return SUGGESTED_FOLDERS
-    return SUGGESTED_FOLDERS.filter((folder) =>
+    if (!normalizedQuery) return folders
+    return folders.filter((folder) =>
       folder.name.toLowerCase().includes(normalizedQuery),
     )
-  }, [normalizedQuery])
+  }, [normalizedQuery, folders])
 
   const filteredFiles = useMemo(() => {
-    if (!normalizedQuery) return SUGGESTED_FILES
-    return SUGGESTED_FILES.filter((file) =>
+    if (!normalizedQuery) return files
+    return files.filter((file) =>
       file.name.toLowerCase().includes(normalizedQuery),
     )
-  }, [normalizedQuery])
+  }, [normalizedQuery, files])
+
+  const handleFileUpdated = useCallback((updated: FileItem) => {
+    setFiles((prev) => prev.map((f) => (f.id === updated.id ? { ...f, ...updated } : f)))
+    setFolders((prev) =>
+      prev.map((folder) =>
+        folder.id === updated.id ? { ...folder, name: updated.name } : folder,
+      ),
+    )
+    setSelectedFile(updated)
+  }, [])
 
   const openDrawer = useCallback((file: FileItem) => {
     setSelectedFile(file)
@@ -363,198 +374,12 @@ export function DocumentsPage() {
         </section>
       </div>
 
-      <aside
-        className={`file-storage-drawer absolute right-0 top-0 bottom-0 z-10 overflow-hidden transition-all duration-300 ease-in-out bg-[var(--modus-wc-color-base-page)] ${
-          drawerOpen ? 'file-storage-drawer-panel w-[320px]' : 'w-0'
-        }`}
-        aria-hidden={!drawerOpen}
-      >
-        <div className="file-storage-drawer-inner w-[320px] min-w-[320px] h-full flex flex-col overflow-hidden">
-          <div className="file-storage-drawer-header flex items-center justify-between p-4 border-b border-[var(--modus-wc-color-base-200)] shrink-0">
-            {selectedFile ? (
-              <>
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <ModusWcIcon
-                    name={selectedFile.type === 'folder' ? 'folder_open' : 'file_text'}
-                    size="md"
-                    customClass={
-                      selectedFile.type === 'folder'
-                        ? 'text-[var(--modus-wc-color-warning)] shrink-0'
-                        : 'text-[var(--modus-wc-color-primary)] shrink-0'
-                    }
-                    decorative
-                  />
-                  <ModusWcTypography
-                    hierarchy="h4"
-                    size="md"
-                    weight="semibold"
-                    label={selectedFile.name}
-                    customClass="truncate"
-                  />
-                </div>
-                <ModusWcButton
-                  variant="borderless"
-                  color="tertiary"
-                  size="sm"
-                  shape="square"
-                  onButtonClick={closeDrawer}
-                  aria-label="Close details"
-                >
-                  <ModusWcIcon name="close" size="xs" decorative />
-                </ModusWcButton>
-              </>
-            ) : (
-              <ModusWcTypography
-                hierarchy="h4"
-                size="md"
-                weight="semibold"
-                label="Details"
-              />
-            )}
-          </div>
-          <div className="file-storage-drawer-body flex-1 overflow-auto p-4">
-            {selectedFile ? (
-              <>
-                <ModusWcTabs
-                  tabs={[
-                    { label: 'Details' },
-                    { label: 'Activity' },
-                  ]}
-                  activeTabIndex={drawerTabIndex}
-                  onTabChange={(e: CustomEvent<{ newTab: number }>) =>
-                    setDrawerTabIndex(e.detail.newTab)
-                  }
-                />
-                <div className="mt-4 flex flex-col gap-4">
-                  <ModusWcCard bordered={false} padding="compact" customClass="mb-3">
-                    <div className="file-storage-drawer-preview">
-                      {selectedFile.previewUrl ? (
-                        <img
-                          src={selectedFile.previewUrl}
-                          alt={selectedFile.previewAlt ?? selectedFile.name}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center min-h-[120px]">
-                          <ModusWcIcon
-                            name={
-                              selectedFile.type === 'folder' ? 'folder_open' : 'file_text'
-                            }
-                            size="lg"
-                            customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                            decorative
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <ModusWcTypography
-                        hierarchy="h3"
-                        size="sm"
-                        weight="semibold"
-                        label={selectedFile.name}
-                      />
-                      <ModusWcTypography
-                        hierarchy="p"
-                        size="xs"
-                        customClass="text-[var(--modus-wc-color-base-content-low-contrast)] mt-1"
-                        label={
-                          selectedFile.type === 'folder'
-                            ? 'Folder'
-                            : 'Document description'
-                        }
-                      />
-                    </div>
-                  </ModusWcCard>
-
-                  <div>
-                    <ModusWcTypography
-                      hierarchy="h3"
-                      size="sm"
-                      weight="semibold"
-                      label="Who has access"
-                      customClass="mb-2"
-                    />
-                    <ModusWcTypography
-                      hierarchy="p"
-                      size="sm"
-                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                      label="You do not have permission to view the list of people with access."
-                    />
-                  </div>
-
-                  <div>
-                    <ModusWcTypography
-                      hierarchy="h3"
-                      size="sm"
-                      weight="semibold"
-                      label="Security limitations"
-                      customClass="mb-2"
-                    />
-                    <ModusWcTypography
-                      hierarchy="p"
-                      size="sm"
-                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                      label="No limitations applied."
-                    />
-                  </div>
-
-                  <div>
-                    <ModusWcTypography
-                      hierarchy="h3"
-                      size="sm"
-                      weight="semibold"
-                      label="Labels"
-                      customClass="mb-2"
-                    />
-                    <ModusWcTypography
-                      hierarchy="p"
-                      size="sm"
-                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)] mb-2"
-                      label="Read-only"
-                    />
-                    <ModusWcButton variant="outlined" color="tertiary" size="sm">
-                      Apply label
-                    </ModusWcButton>
-                  </div>
-
-                  <div>
-                    <ModusWcTypography
-                      hierarchy="h3"
-                      size="sm"
-                      weight="semibold"
-                      label="Data Classification"
-                      customClass="mb-2"
-                    />
-                    {selectedFile.label ? (
-                      <ModusWcBadge
-                        variant="filled"
-                        color={getLabelColor(selectedFile.label)}
-                        size="sm"
-                      >
-                        {selectedFile.label}
-                      </ModusWcBadge>
-                    ) : (
-                      <ModusWcTypography
-                        hierarchy="p"
-                        size="sm"
-                        customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                        label="Not classified"
-                      />
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <ModusWcTypography
-                hierarchy="p"
-                size="sm"
-                customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                label="Select a file or folder to view details."
-              />
-            )}
-          </div>
-        </div>
-      </aside>
+      <FileInfoPanel
+        open={drawerOpen}
+        file={selectedFile}
+        onClose={closeDrawer}
+        onFileUpdated={handleFileUpdated}
+      />
     </div>
   )
 }

@@ -90,7 +90,7 @@ export default function App() {
             />
           }
         >
-          <div className="w-full min-w-0 min-h-0 flex flex-col flex-1 px-4 sm:px-6 pb-6 pt-4 box-border">
+          <div className="w-full min-w-0 min-h-0 flex flex-col flex-1 px-4 sm:px-6 pb-6 box-border">
             <DocumentsPage />
           </div>
         </Suspense>

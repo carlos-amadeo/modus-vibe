@@ -113,21 +113,25 @@
   gap: 8px;
 }
 
-/* Custom fields: same h5 alignment as other sections (no collapse summary padding) */
-.file-info-custom-fields-toggle {
+/* Custom fields / Attached to: collapsible section toggles */
+.file-info-custom-fields-toggle,
+.file-info-attached-toggle {
   cursor: pointer;
 }
 
-.file-info-custom-fields-toggle:focus-visible {
+.file-info-custom-fields-toggle:focus-visible,
+.file-info-attached-toggle:focus-visible {
   outline: 2px solid var(--modus-wc-color-primary);
   outline-offset: 2px;
 }
 
-.file-info-custom-fields-section[data-expanded='true'] .file-info-custom-fields-chevron {
+.file-info-custom-fields-section[data-expanded='true'] .file-info-custom-fields-chevron,
+.file-info-attached-section[data-expanded='true'] .file-info-attached-chevron {
   transform: rotate(180deg);
 }
 
-.file-info-custom-fields-chevron {
+.file-info-custom-fields-chevron,
+.file-info-attached-chevron {
   transition: transform 0.2s ease-out;
 }
 
@@ -154,17 +158,48 @@
   list-style-position: outside;
 }
 
-/* Match panel content inset (px-4) for attachment list markers / items */
+/* Unlayered: Tailwind utilities / preflight reset list-style — explicit disc bullets */
 .file-info-attached-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding-left: 1rem;
+  margin: 0;
+  padding: 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
   list-style-position: outside;
 }
 
+.file-info-attached-list > li {
+  display: list-item;
+  margin-block: 0.25rem;
+  padding: 0;
+}
+
+.file-info-attached-list > li::marker {
+  color: var(--modus-wc-color-base-content);
+}
+
 .file-info-attached-item {
-  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+}
+
+.file-info-attached-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--modus-wc-font-size-sm, 0.875rem);
+  line-height: var(--modus-wc-line-height-sm, 1.25rem);
+  text-decoration: none;
+}
+
+.file-info-attached-link-label {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.file-info-attached-link modus-wc-icon {
+  flex-shrink: 0;
 }
 
 /* Avatar group with gap (not overlap): omit Daisy ring borders between separated avatars */

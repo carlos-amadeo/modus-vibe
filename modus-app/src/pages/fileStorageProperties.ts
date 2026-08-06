@@ -12,10 +12,14 @@ export interface FileHistoryEntry {
   timestamp: string
 }
 
+export type FileAttachmentKind = 'commitments' | 'forms' | 'processes'
+
 export interface FileAttachment {
   id: string
   label: string
-  context: string
+  projectName: string
+  href: string
+  kind: FileAttachmentKind
 }
 
 export interface FileCustomField {
@@ -80,9 +84,48 @@ const SAMPLE_HISTORY: FileHistoryEntry[] = [
 ]
 
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [
-  { id: 'a1', label: 'Building A — Level 2', context: 'Project folder' },
-  { id: 'a2', label: 'RFI #1042', context: 'Submittal package' },
-  { id: 'a3', label: 'Weekly report — W12', context: 'Report template' },
+  {
+    id: 'a1',
+    label: 'CP-2025-04 Structural Package',
+    projectName: 'Harbor Tower Renovation',
+    href: '#',
+    kind: 'commitments',
+  },
+  {
+    id: 'a2',
+    label: 'RFI #1042 Response',
+    projectName: 'West Campus Expansion',
+    href: '#',
+    kind: 'commitments',
+  },
+  {
+    id: 'a3',
+    label: 'Weekly report — W12',
+    projectName: 'Harbor Tower Renovation',
+    href: '#',
+    kind: 'forms',
+  },
+  {
+    id: 'a4',
+    label: 'Safety inspection checklist',
+    projectName: 'Metro Line 4 — Phase 2',
+    href: '#',
+    kind: 'forms',
+  },
+  {
+    id: 'a5',
+    label: 'Submittal review workflow',
+    projectName: 'West Campus Expansion',
+    href: '#',
+    kind: 'processes',
+  },
+  {
+    id: 'a6',
+    label: 'Building A — Level 2',
+    projectName: 'Harbor Tower Renovation',
+    href: '#',
+    kind: 'processes',
+  },
 ]
 
 const SAMPLE_CUSTOM_FIELDS: FileCustomField[] = [

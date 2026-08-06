@@ -20,6 +20,8 @@ import {
 } from './fileStorageData'
 import {
   enrichFileProperties,
+  type FileAttachment,
+  type FileAttachmentKind,
   type FileCustomField,
   type FileItemWithProperties,
 } from './fileStorageProperties'
@@ -34,6 +36,16 @@ const DRILL_PANEL_HEADINGS: Record<Exclude<DrillView, 'info'>, string> = {
   location: 'Location',
   attachments: 'Attached to',
 }
+
+const ATTACHMENT_GROUP_HEADINGS: Record<FileAttachmentKind, string> = {
+  commitments: 'Commitments',
+  forms: 'Forms',
+  processes: 'Processes',
+}
+
+const ATTACHMENT_GROUP_ORDER: FileAttachmentKind[] = ['commitments', 'forms', 'processes']
+
+const INFO_PANEL_ATTACHMENT_PREVIEW_PER_GROUP = 2
 
 interface FileInfoPanelProps {
   open: boolean
@@ -118,6 +130,74 @@ function PropertyRow({ label, children }: { label: string; children: ReactNode }
   )
 }
 
+function AttachedToCategoryLists({
+  attachments,
+  limitPerGroup,
+}: {
+  attachments: FileAttachment[]
+  limitPerGroup?: number
+}) {
+  return (
+    <div className="file-info-attached-groups flex flex-col gap-3">
+      {ATTACHMENT_GROUP_ORDER.map((kind) => {
+        const items = attachments.filter((att) => att.kind === kind)
+        const visible = limitPerGroup != null ? items.slice(0, limitPerGroup) : items
+        const headingId = `file-info-attached-${kind}-heading`
+
+        return (
+          <div key={kind} className="file-info-attached-group min-w-0">
+            <ModusWcTypography
+              id={headingId}
+              hierarchy="h6"
+              size="sm"
+              weight="semibold"
+              label={ATTACHMENT_GROUP_HEADINGS[kind]}
+              customClass="!mb-1"
+            />
+            {visible.length > 0 ? (
+              <ul className="file-info-attached-list" aria-labelledby={headingId}>
+                {visible.map((att) => (
+                  <li key={att.id}>
+                    <div className="file-info-attached-item">
+                      <a
+                        href={att.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="file-info-attached-link file-info-text-link"
+                        onClick={(e) => {
+                          if (att.href === '#') e.preventDefault()
+                        }}
+                      >
+                        <span className="file-info-attached-link-label">{att.label}</span>
+                        <ModusWcIcon name="launch" size="xs" decorative />
+                        <span className="sr-only"> (opens in new tab)</span>
+                      </a>
+                      <ModusWcTypography
+                        hierarchy="p"
+                        size="xs"
+                        customClass="!m-0 text-[var(--modus-wc-color-base-content-low-contrast)]"
+                        label={att.projectName}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ModusWcTypography
+                hierarchy="p"
+                size="sm"
+                customClass="!m-0 text-[var(--modus-wc-color-base-content-low-contrast)]"
+                label="None"
+                aria-labelledby={headingId}
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function AccessAvatarStack({
   users,
   overflow,
@@ -164,6 +244,7 @@ function FileInfoPanelBody({
 }: FileInfoPanelBodyProps) {
   const [drillView, setDrillView] = useState<DrillView>('info')
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false)
+  const [attachedToOpen, setAttachedToOpen] = useState(false)
   const [draftName, setDraftName] = useState(enriched.name)
   const [draftLabel, setDraftLabel] = useState<FileLabel | undefined>(file.label)
   const [draftDescription, setDraftDescription] = useState(enriched.description)
@@ -557,42 +638,59 @@ function FileInfoPanelBody({
           </div>
         </section>
 
-        <section aria-labelledby="file-info-attached-heading">
-          <ModusWcTypography
+        <section
+          className="file-info-attached-section flex flex-col border-b border-[var(--modus-wc-color-base-200)]"
+          data-expanded={attachedToOpen ? 'true' : 'false'}
+        >
+          <button
+            type="button"
+            className="file-info-attached-toggle flex w-full min-w-0 items-center justify-between gap-2 border-0 bg-transparent p-0 text-left"
+            aria-expanded={attachedToOpen}
+            aria-controls="file-info-attached-content"
             id="file-info-attached-heading"
-            hierarchy="h5"
-            size="md"
-            weight="semibold"
-            label="Attached to"
-            customClass="mb-2"
-          />
-          <ul className="file-info-attached-list m-0 list-none py-0 pr-0">
-            {enriched.attachments.slice(0, 3).map((att) => (
-              <li
-                key={att.id}
-                className="file-info-attached-item rounded-md border border-[var(--modus-wc-color-base-200)]"
-              >
-                <ModusWcTypography hierarchy="p" size="sm" weight="semibold" label={att.label} />
-                <ModusWcTypography
-                  hierarchy="p"
-                  size="xs"
-                  customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                  label={att.context}
-                />
-              </li>
-            ))}
-          </ul>
-          {enriched.attachments.length > 3 ? (
-            <ModusWcButton
-              variant="borderless"
-              color="primary"
+            onClick={() => setAttachedToOpen((open) => !open)}
+          >
+            <ModusWcTypography
+              hierarchy="h5"
+              size="md"
+              weight="semibold"
+              label="Attached to"
+              customClass="!m-0"
+            />
+            <ModusWcIcon
+              name="caret_down"
               size="sm"
-              customClass="mt-2"
-              onButtonClick={() => setDrillView('attachments')}
-            >
-              View all
-            </ModusWcButton>
-          ) : null}
+              decorative
+              customClass="file-info-attached-chevron shrink-0"
+            />
+          </button>
+          <div
+            id="file-info-attached-content"
+            role="region"
+            aria-labelledby="file-info-attached-heading"
+            hidden={!attachedToOpen}
+            className="file-info-attached-content flex flex-col gap-3 pb-3 pt-2"
+          >
+            <AttachedToCategoryLists
+              attachments={enriched.attachments}
+              limitPerGroup={INFO_PANEL_ATTACHMENT_PREVIEW_PER_GROUP}
+            />
+            {ATTACHMENT_GROUP_ORDER.some(
+              (kind) =>
+                enriched.attachments.filter((att) => att.kind === kind).length >
+                INFO_PANEL_ATTACHMENT_PREVIEW_PER_GROUP,
+            ) ? (
+              <ModusWcButton
+                variant="borderless"
+                color="primary"
+                size="sm"
+                customClass="!justify-start"
+                onButtonClick={() => setDrillView('attachments')}
+              >
+                View all
+              </ModusWcButton>
+            ) : null}
+          </div>
         </section>
 
         <section aria-labelledby="file-info-path-heading">
@@ -702,22 +800,9 @@ function FileInfoPanelBody({
   const renderAttachmentsDrill = () => {
     if (!enriched) return null
     return (
-      <ul className="file-info-drill-body m-0 flex list-none flex-col gap-2 pb-4">
-          {enriched.attachments.map((att) => (
-            <li
-              key={att.id}
-              className="file-info-attached-item rounded-md border border-[var(--modus-wc-color-base-200)]"
-            >
-              <ModusWcTypography hierarchy="p" size="sm" weight="semibold" label={att.label} />
-              <ModusWcTypography
-                hierarchy="p"
-                size="xs"
-                customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                label={att.context}
-              />
-            </li>
-          ))}
-      </ul>
+      <div className="file-info-drill-body pb-4 pt-2">
+        <AttachedToCategoryLists attachments={enriched.attachments} />
+      </div>
     )
   }
 

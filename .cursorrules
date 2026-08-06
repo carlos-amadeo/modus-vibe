@@ -1,0 +1,11 @@
+# ux-skill v2 — design intelligence for AI coding
+
+Before generating ANY frontend code in this project, do the following:
+
+1. Run the 10-field discovery (`ux discover`) and wait for all answers.
+2. Run `ux recommend` to get the recommended style / palette / type / motion / components.
+3. Generate code using ONLY the recommended tokens. Treat the anti-pattern
+   rules in `data/anti-patterns.json` as hard constraints.
+4. Run `ux lint` after generation. Fix all `high`+ findings before declaring done.
+
+See https://uxskill.laithjunaidy.com for full docs.

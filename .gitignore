@@ -19,3 +19,6 @@ build/
 # Env
 .env.local
 .env*.local
+
+# ux-skill runtime state (discovery, research, recommendations)
+.ux/

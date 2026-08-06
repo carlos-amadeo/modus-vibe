@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "skills": {
+    "Accessibility Audit": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "accessibility-audit/SKILL.md",
+      "computedHash": "65831ce3ff35b51c354ac2f24a34bf7569b111d1e0e0b83d3f89f93e87b25def"
+    },
+    "Design Critique & Evaluation": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "design-critique/SKILL.md",
+      "computedHash": "1c0543d7cc72602778bfeb71c25f8df17f29f8d685cfeb57484e2b86f2355216"
+    },
+    "Design Systems": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "design-systems/SKILL.md",
+      "computedHash": "b5c64bd241a0d791120cfc5f859c41fdd0be26a7cf65e640b6f6c7bc006af276"
+    },
+    "Interaction Design": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "interaction-design/SKILL.md",
+      "computedHash": "d576c6308841b06be6e899d2a3aac9914bd77b41e9c1989104ffcbe8525d21ab"
+    },
+    "Journey Mapping & Service Design": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "journey-mapping/SKILL.md",
+      "computedHash": "53ee31ddfc479b441642129524509ac3f4e50b9b30dbf65bbfb99372e41e2b90"
+    },
+    "UX Strategy": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "ux-strategy/SKILL.md",
+      "computedHash": "cbbeeae99c123d56238dd14d2fbe9da6bb29bd2505773123dddb7c4096f9ad93"
+    },
+    "design-elevation": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "design-elevation/SKILL.md",
+      "computedHash": "3ddd318b6cc6d04801ba91264ea6806e3d42f14bb3778dc3503ecc0a34a76142"
+    },
+    "design-ops": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "design-ops/SKILL.md",
+      "computedHash": "bd1ff2512d63d5f012284dfda631fadf05f6ca927bf8f7588a4d3f029703d8cd"
+    },
+    "ux-research": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "ux-research/SKILL.md",
+      "computedHash": "41f3feeb3ce9d57dd8abf3b68a6acd8e3fa87ee0dee57fdadeef8cf324a2df16"
+    },
+    "ux-writing": {
+      "source": "cuellarfr/design-skills",
+      "sourceType": "github",
+      "skillPath": "ux-writing/SKILL.md",
+      "computedHash": "06392ac69e4f025cfdd902bf56ec3540cfaff6d16ec0e143b22d65854a39b57d"
+    }
+  }
+}

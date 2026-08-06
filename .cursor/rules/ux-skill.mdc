@@ -1,0 +1,25 @@
+---
+description: ux-skill design intelligence — discovery, recommend, lint, research, and UI generation workflows. Use when doing UX research, design systems, anti-AI-slop linting, or non-Modus frontend experiments alongside project Modus rules.
+alwaysApply: false
+---
+
+# ux-skill (project install)
+
+This repo includes [ux-skill](https://github.com/Laith0003/ux-skill) as Cursor Agent Skills and local `data/` manifests.
+
+## When to use
+
+- User research planning or synthesis → skill **`ux-research`** (agent **`ux-agent-research-synthesizer`** for `--synthesize`)
+- 10-field brief before UI generation → **`ux-discover`**, then **`ux-recommend`**
+- Generate or audit UI outside strict Modus component work → **`ux-design`**, **`ux-audit`**, **`ux-lint`**
+- Workshops, framing, copy, a11y, motion → **`ux-workshop`**, **`ux-frame`**, **`ux-copy`**, **`ux-a11y`**, **`ux-motion`**
+
+## Modus vs ux-skill
+
+**Modus Web Components rules in this repo take precedence** for Modus-branded product UI. Use ux-skill for research, discovery, design-system recommendations, and linting — not to replace `modus-wc-*` with generic Tailwind UI.
+
+## Python engine (optional)
+
+CLI commands (`ux recommend`, `ux lint`, …) need Python 3.9+ and `pip install uxskill`. Skills and `data/` work without Python; the recommender/linter CLI does not.
+
+State files: `.ux/` (gitignored).
